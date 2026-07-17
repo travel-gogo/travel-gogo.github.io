@@ -200,12 +200,40 @@
   .memo-pad li{
     display:flex;gap:11px;align-items:flex-start;font-size:13.5px;
     background:rgba(255,255,255,.72);padding:10px 14px;border-radius:6px;
+    cursor:pointer;position:relative;transition:background .12s;
   }
+  .memo-pad li:hover{background:rgba(255,255,255,.92)}
   .memo-pad li .box{
     flex-shrink:0;width:19px;height:19px;border:2px solid var(--ink);border-radius:4px;
     margin-top:3px;transform:rotate(-2deg);background:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;line-height:1;color:#fff;
   }
+  .memo-pad li .box.checked{background:var(--pen-green);border-color:var(--pen-green)}
+  .memo-pad li .box.checked::after{content:"✓"}
+  .memo-pad li.done .txt{text-decoration:line-through;opacity:.5}
+  .memo-pad li .txt{flex:1}
   .memo-pad li b{color:var(--pen-blue)}
+  .memo-pad li .tdel{
+    flex-shrink:0;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--pen-red);
+    background:#fff;color:var(--pen-red);cursor:pointer;font-family:"Gowun Dodum",sans-serif;
+    font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;
+    opacity:.85;transition:.12s;margin-top:1px;
+  }
+  .memo-pad li .tdel:hover{background:var(--pen-red);color:#fff;transform:scale(1.1)}
+  .todo-add{display:flex;gap:8px;margin-top:14px}
+  .todo-add input{
+    flex:1;font-family:"Gowun Dodum",sans-serif;font-size:13.5px;color:var(--ink);
+    padding:9px 13px;border:1.5px solid rgba(255,255,255,.9);border-radius:7px;
+    background:rgba(255,255,255,.85);
+  }
+  .todo-add input:focus{outline:none;border-color:var(--pen-blue)}
+  .todo-add button{
+    font-family:"Jua",sans-serif;font-size:14px;padding:0 18px;white-space:nowrap;
+    border:2px solid var(--ink);border-radius:7px;background:var(--butter);color:var(--ink);
+    cursor:pointer;box-shadow:1.5px 1.5px 0 rgba(59,54,48,.2);transition:.12s;
+  }
+  .todo-add button:hover{transform:translateY(-1px)}
 
   footer{
     text-align:center;font-family:"Gowun Dodum",sans-serif;color:var(--soft);
@@ -224,14 +252,25 @@
   .addbtn:active{transform:translateY(0);box-shadow:1px 1px 0 rgba(59,54,48,.25)}
   .addhint{font-family:"Gowun Dodum",sans-serif;font-size:12px;color:var(--soft)}
 
-  .pcard .del{
-    position:absolute;top:8px;left:10px;width:22px;height:22px;border-radius:50%;
-    border:1.5px solid var(--pen-red);background:#fff;color:var(--pen-red);cursor:pointer;
+  .pcard-actions{position:absolute;top:8px;left:10px;display:flex;gap:6px;z-index:3}
+  .pcard-actions button{
+    width:24px;height:24px;border-radius:50%;border:1.5px solid;background:#fff;cursor:pointer;
     font-family:"Gowun Dodum",sans-serif;font-size:13px;line-height:1;
-    display:flex;align-items:center;justify-content:center;opacity:0;transition:.12s;z-index:3;
+    display:flex;align-items:center;justify-content:center;opacity:.85;transition:.12s;
+    box-shadow:1px 1px 0 rgba(59,54,48,.18);
   }
-  .pcard:hover .del{opacity:1}
-  .pcard .del:hover{background:var(--pen-red);color:#fff}
+  .pcard:hover .pcard-actions button{opacity:1}
+  .pcard-actions button:hover{transform:scale(1.1)}
+  .pcard-actions .edit{border-color:var(--pen-blue);color:var(--pen-blue);font-size:12px}
+  .pcard-actions .edit:hover{background:var(--pen-blue);color:#fff}
+  .pcard-actions .del{border-color:var(--pen-red);color:var(--pen-red);font-size:14px}
+  .pcard-actions .del:hover{background:var(--pen-red);color:#fff}
+  .pcard-actions .revert{border-color:var(--soft);color:var(--soft);font-size:14px}
+  .pcard-actions .revert:hover{background:var(--soft);color:#fff}
+  .pcard .edited{
+    position:absolute;bottom:10px;right:12px;font-family:"Nanum Pen Script",cursive;
+    font-size:15px;color:var(--pen-blue);opacity:.75;
+  }
   .pcard .mine{
     position:absolute;bottom:10px;right:12px;font-family:"Nanum Pen Script",cursive;
     font-size:15px;color:var(--pen-green);opacity:.75;
@@ -368,16 +407,12 @@
     <div class="memo-pad">
       <span class="tape butter"></span><span class="tape dot t2"></span>
       <h3>✍ 출발 전 체크리스트</h3>
-      <div class="cap">정해지면 하나씩 지워나가기~</div>
-      <ul>
-        <li><span class="box"></span><span><b>이동수단</b> — 렌트 vs 택시. 다들 마실 거라 밤엔 택시, 낮엔 렌트(짐+6명)가 편한 조합</span></li>
-        <li><span class="box"></span><span><b>저녁 1차 식당</b> — 탕수육이나 국밥류로 생각 중. 19:30까진 끝내야 함(장보기 마감!)</span></li>
-        <li><span class="box"></span><span><b>2일차 카페</b> — 후보 6곳! 그날 컨디션 보고 고르기</span></li>
-        <li><span class="box"></span><span><b>미담펜션 체크인/아웃 시각</b> 확인 (지금은 15:00/11:00으로 가정해둠)</span></li>
-        <li><span class="box"></span><span><b>귀가 열차 예매</b> — 16:24 묵호 출발 (강릉 경유 청량리행)</span></li>
-        <li><span class="box"></span><span><b>어달해변포차</b> 8/16 운영하는지 + 날씨 (노지라서 비 오면 큰일)</span></li>
-        <li><span class="box"></span><span><b>문어닭강정 예약 전화</b> — 주말엔 금방 품절된대!</span></li>
-      </ul>
+      <div class="cap">체크하면 줄이 그어짐 · 항목 추가도 가능 (이 브라우저에 저장됨)</div>
+      <ul id="todolist"></ul>
+      <div class="todo-add">
+        <input type="text" id="todoInput" placeholder="새 항목 추가... (예: 멀미약 챙기기)" maxlength="120">
+        <button type="button" id="todoAddBtn">＋ 추가</button>
+      </div>
     </div>
   </section>
 
@@ -542,16 +577,21 @@ const SPOTS=[
   note:"콘커피(옥수수커피) 시그니처 + 지하 포토존. 묵호역 바로 근처라 기차 타기 전 마지막 코스로 딱!"},
 ];
 
-/* ---------- custom places (localStorage) ---------- */
+/* ---------- custom places + overrides (localStorage) ---------- */
 const LS_KEY="mukho_custom_spots";
-function loadCustom(){
-  try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):[];}
-  catch(e){return [];}
-}
+const LS_OVR="mukho_spot_overrides";
+function loadLS(key,fb){try{const r=localStorage.getItem(key);return r?JSON.parse(r):fb;}catch(e){return fb;}}
+let CUSTOM=loadLS(LS_KEY,[]);
+let OVERRIDES=loadLS(LS_OVR,{});   /* {고정장소id: {수정된 필드들}} */
 function saveCustom(){localStorage.setItem(LS_KEY,JSON.stringify(CUSTOM));}
-let CUSTOM=loadCustom();
-/* SPOTS(고정) + 사용자 추가분 병합 */
-function allSpots(){return [...SPOTS,...CUSTOM];}
+function saveOverrides(){localStorage.setItem(LS_OVR,JSON.stringify(OVERRIDES));}
+/* SPOTS(고정, 오버라이드 적용) + 사용자 추가분 병합 */
+function allSpots(){
+  return [
+    ...SPOTS.map(s=>OVERRIDES[s.id]?{...s,...OVERRIDES[s.id]}:s),
+    ...CUSTOM,
+  ];
+}
 
 /* ---------- render timeline ---------- */
 const TAPES=["","lav","sky","mint","butter","dot"];
@@ -595,13 +635,18 @@ function renderPlaces(){
     const cards=list.map((s,i)=>{
       const tel=s.tel?`<div class="meta"><span class="ic">☎</span><span>${esc(s.tel)}</span></div>`:"";
       const tape=TAPES[(i+1)%TAPES.length];
-      const del=s.custom?`<button class="del" data-del="${s.id}" title="삭제">✕</button>`:"";
-      const mine=s.custom?`<span class="mine">내가 추가 ✦</span>`:"";
+      const isOver=!s.custom&&!!OVERRIDES[s.id];
+      const actions=`<div class="pcard-actions">
+        <button class="edit" data-edit="${s.id}" title="수정">✎</button>
+        ${s.custom?`<button class="del" data-del="${s.id}" title="삭제">✕</button>`:""}
+        ${isOver?`<button class="revert" data-revert="${s.id}" title="원래대로 되돌리기">↺</button>`:""}
+      </div>`;
+      const badge=s.custom?`<span class="mine">내가 추가 ✦</span>`:(isOver?`<span class="edited">수정됨 ✎</span>`:"");
       const addr=s.addr?`<div class="meta"><span class="ic">📍</span><span>${esc(s.addr)}</span></div>`:"";
       const hours=s.hours?`<div class="meta"><span class="ic">🕐</span><span>${esc(s.hours)}</span></div>`:"";
       const note=s.note?`<div class="pnote ${s.warn?'warn':''}">${esc(s.note)}</div>`:"";
       return `<div class="pcard" data-spot="${s.id}">
-        ${del}
+        ${actions}
         <span class="tape ${tape}"></span>
         <div class="ph">
           <div><div class="pn">${esc(s.name)}</div><div class="when">${esc(s.when)}</div></div>
@@ -611,7 +656,7 @@ function renderPlaces(){
         ${tel}
         ${hours}
         ${note}
-        ${mine}
+        ${badge}
       </div>`;
     }).join("");
     return `<div class="catblock">
@@ -625,13 +670,27 @@ function renderPlaces(){
 function bindPlaceEvents(){
   document.querySelectorAll('#placewrap [data-spot]').forEach(el=>{
     el.onclick=e=>{
-      if(e.target.closest('[data-del]')) return;
+      if(e.target.closest('[data-del],[data-edit],[data-revert]')) return;
       if(markers[el.dataset.spot]) focusSpot(el.dataset.spot);
     };
   });
   document.querySelectorAll('#placewrap [data-del]').forEach(b=>{
     b.onclick=e=>{e.stopPropagation();deleteSpot(b.dataset.del);};
   });
+  document.querySelectorAll('#placewrap [data-edit]').forEach(b=>{
+    b.onclick=e=>{e.stopPropagation();openEdit(b.dataset.edit);};
+  });
+  document.querySelectorAll('#placewrap [data-revert]').forEach(b=>{
+    b.onclick=e=>{e.stopPropagation();revertSpot(b.dataset.revert);};
+  });
+}
+function revertSpot(id){
+  const s=SPOTS.find(x=>x.id===id); if(!s) return;
+  if(!confirm(`"${s.name}" 수정한 걸 원래대로 되돌릴까?`)) return;
+  delete OVERRIDES[id];
+  saveOverrides();
+  renderPlaces();
+  redrawMarkers();
 }
 function deleteSpot(id){
   const s=CUSTOM.find(x=>x.id===id); if(!s) return;
@@ -725,8 +784,28 @@ bindPlaceEvents();
 const overlay=document.getElementById('overlay');
 const addForm=document.getElementById('addForm');
 const geoMsg=document.getElementById('geoMsg');
-function openModal(){overlay.classList.add('open');}
-function closeModal(){overlay.classList.remove('open');addForm.reset();geoMsg.textContent="";geoMsg.className="geomsg";}
+const modalTitle=document.getElementById('modalTitle');
+let editingId=null;
+function openModal(){
+  editingId=null;
+  addForm.reset();
+  modalTitle.textContent="✍ 새 장소 추가";
+  geoMsg.textContent="";geoMsg.className="geomsg";
+  overlay.classList.add('open');
+}
+function openEdit(id){
+  const s=allSpots().find(x=>x.id===id); if(!s) return;
+  editingId=id;
+  const f=addForm.elements;
+  f.name.value=s.name||""; f.cat.value=s.cat||"식당"; f.status.value=s.status||"후보";
+  f.when.value=s.when||""; f.addr.value=s.addr||""; f.tel.value=s.tel||"";
+  f.hours.value=s.hours||""; f.note.value=s.note||"";
+  f.lat.value=s.lat!=null?s.lat:""; f.lng.value=s.lng!=null?s.lng:"";
+  modalTitle.textContent="✍ 장소 수정";
+  geoMsg.textContent="";geoMsg.className="geomsg";
+  overlay.classList.add('open');
+}
+function closeModal(){overlay.classList.remove('open');editingId=null;addForm.reset();geoMsg.textContent="";geoMsg.className="geomsg";}
 document.getElementById('openAdd').addEventListener('click',openModal);
 document.getElementById('closeAdd').addEventListener('click',closeModal);
 document.getElementById('cancelAdd').addEventListener('click',closeModal);
@@ -775,15 +854,91 @@ addForm.addEventListener('submit',e=>{
     lat:latRaw!==""&&!isNaN(+latRaw)?+latRaw:null,
     lng:lngRaw!==""&&!isNaN(+lngRaw)?+lngRaw:null,
   };
-  CUSTOM.push(spot);
-  saveCustom();
+  if(editingId){
+    const idx=CUSTOM.findIndex(x=>x.id===editingId);
+    if(idx>=0){
+      /* 내가 추가한 장소 수정 */
+      spot.id=editingId;CUSTOM[idx]=spot;saveCustom();
+    }else{
+      /* 원래 있던 고정 장소 수정 → 오버라이드로 저장 (원본은 보존) */
+      spot.id=editingId;
+      OVERRIDES[editingId]={cat:spot.cat,name:spot.name,status:spot.status,when:spot.when,
+        addr:spot.addr,tel:spot.tel,hours:spot.hours,note:spot.note,lat:spot.lat,lng:spot.lng};
+      saveOverrides();
+    }
+  }else{
+    CUSTOM.push(spot);saveCustom();
+  }
   renderPlaces();
   redrawMarkers();
+  const savedId=spot.id;
   closeModal();
-  /* 방금 추가한 카드로 스크롤 */
-  const card=document.querySelector(`#placewrap [data-spot="${spot.id}"]`);
+  /* 방금 저장한 카드로 스크롤 */
+  const card=document.querySelector(`#placewrap [data-spot="${savedId}"]`);
   if(card){card.scrollIntoView({behavior:'smooth',block:'center'});}
 });
+
+/* ---------- checklist (localStorage) ---------- */
+const DEFAULT_TODOS=[
+ {id:"t1",html:"<b>이동수단</b> — 렌트 vs 택시. 다들 마실 거라 밤엔 택시, 낮엔 렌트(짐+6명)가 편한 조합"},
+ {id:"t2",html:"<b>저녁 1차 식당</b> — 탕수육이나 국밥류로 생각 중. 19:30까진 끝내야 함(장보기 마감!)"},
+ {id:"t3",html:"<b>2일차 카페</b> — 후보 6곳! 그날 컨디션 보고 고르기"},
+ {id:"t4",html:"<b>미담펜션 체크인/아웃 시각</b> 확인 (지금은 15:00/11:00으로 가정해둠)"},
+ {id:"t5",html:"<b>귀가 열차 예매</b> — 16:24 묵호 출발 (강릉 경유 청량리행)"},
+ {id:"t6",html:"<b>어달해변포차</b> 8/16 운영하는지 + 날씨 (노지라서 비 오면 큰일)"},
+ {id:"t7",html:"<b>문어닭강정 예약 전화</b> — 주말엔 금방 품절된대!"},
+];
+function loadJSON(key,fallback){try{const r=localStorage.getItem(key);return r?JSON.parse(r):fallback;}catch(e){return fallback;}}
+let todoChecked=loadJSON("mukho_todo_checked",{});
+let todoItems=loadJSON("mukho_todo_items",[]);
+function saveTodos(){
+  localStorage.setItem("mukho_todo_checked",JSON.stringify(todoChecked));
+  localStorage.setItem("mukho_todo_items",JSON.stringify(todoItems));
+}
+function renderTodos(){
+  const ul=document.getElementById("todolist");
+  const items=[
+    ...DEFAULT_TODOS.map(t=>({id:t.id,html:t.html,custom:false})),
+    ...todoItems.map(t=>({id:t.id,html:esc(t.text),custom:true})),
+  ];
+  ul.innerHTML=items.map(t=>{
+    const on=!!todoChecked[t.id];
+    const del=t.custom?`<button class="tdel" data-tdel="${t.id}" title="삭제">✕</button>`:"";
+    return `<li class="${on?'done':''}" data-tid="${t.id}">
+      <span class="box ${on?'checked':''}"></span>
+      <span class="txt">${t.html}</span>
+      ${del}
+    </li>`;
+  }).join("");
+  ul.querySelectorAll('[data-tid]').forEach(li=>{
+    li.onclick=e=>{
+      if(e.target.closest('[data-tdel]')) return;
+      const id=li.dataset.tid;
+      if(todoChecked[id]) delete todoChecked[id]; else todoChecked[id]=true;
+      saveTodos(); renderTodos();
+    };
+  });
+  ul.querySelectorAll('[data-tdel]').forEach(b=>{
+    b.onclick=e=>{
+      e.stopPropagation();
+      const id=b.dataset.tdel;
+      todoItems=todoItems.filter(x=>x.id!==id);
+      delete todoChecked[id];
+      saveTodos(); renderTodos();
+    };
+  });
+}
+function addTodo(){
+  const inp=document.getElementById("todoInput");
+  const text=inp.value.trim();
+  if(!text) return;
+  todoItems.push({id:"tc_"+Date.now(),text});
+  saveTodos(); renderTodos();
+  inp.value="";
+}
+document.getElementById("todoAddBtn").addEventListener("click",addTodo);
+document.getElementById("todoInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addTodo();}});
+renderTodos();
 </script>
 </body>
 </html>
