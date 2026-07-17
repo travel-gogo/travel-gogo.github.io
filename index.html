@@ -126,6 +126,28 @@
   .st-tbd{color:var(--soft);border-color:var(--soft)}
   .maphint{font-family:"Gowun Dodum",sans-serif;font-size:11px;color:var(--pen-blue);
     position:absolute;right:12px;bottom:8px;opacity:.75}
+  .note-card .row1{padding-right:44px}
+  .note-card .tl-actions{position:absolute;top:7px;right:9px;display:flex;gap:5px;z-index:4}
+  .note-card .tl-actions button{
+    width:21px;height:21px;border-radius:50%;border:1.5px solid;background:#fff;cursor:pointer;
+    font-family:"Gowun Dodum",sans-serif;font-size:11px;line-height:1;
+    display:flex;align-items:center;justify-content:center;opacity:.6;transition:.12s;
+    box-shadow:1px 1px 0 rgba(59,54,48,.15);
+  }
+  .note-card:hover .tl-actions button{opacity:1}
+  .note-card .tl-actions button:hover{transform:scale(1.12)}
+  .tl-actions .edit{border-color:var(--pen-blue);color:var(--pen-blue)}
+  .tl-actions .edit:hover{background:var(--pen-blue);color:#fff}
+  .tl-actions .del{border-color:var(--pen-red);color:var(--pen-red)}
+  .tl-actions .del:hover{background:var(--pen-red);color:#fff}
+  .tl-actions .revert{border-color:var(--soft);color:var(--soft);font-size:12px}
+  .tl-actions .revert:hover{background:var(--soft);color:#fff}
+  .tl-addbtn{
+    font-family:"Gowun Dodum",sans-serif;font-size:13px;padding:5px 16px;margin:2px 0 8px;
+    border:1.6px dashed var(--soft);border-radius:20px;background:rgba(255,255,255,.5);
+    color:var(--soft);cursor:pointer;transition:.12s;
+  }
+  .tl-addbtn:hover{border-color:var(--pen-blue);color:var(--pen-blue);background:#fff}
 
   /* ---------- map polaroid ---------- */
   .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
@@ -370,9 +392,11 @@
 
     <div class="daytab"><span class="chip">DAY 1</span> 8월 16일 일요일 ☀️바다!</div>
     <div id="tl1"></div>
+    <button class="tl-addbtn" data-addday="DAY1">＋ DAY 1 일정 추가</button>
 
     <div class="daytab" style="margin-top:34px"><span class="chip" style="background:var(--mint)">DAY 2</span> 8월 17일 월요일 ☕해장...</div>
     <div id="tl2"></div>
+    <button class="tl-addbtn" data-addday="DAY2">＋ DAY 2 일정 추가</button>
   </section>
 
   <!-- ===== MAP ===== -->
@@ -496,6 +520,70 @@
   </div>
 </div>
 
+<!-- ===== TIMELINE ITEM MODAL ===== -->
+<div class="overlay" id="tlOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tlTitle">
+    <span class="tape sky"></span>
+    <button class="xbtn" id="tlClose" aria-label="닫기">×</button>
+    <h3 id="tlTitle">✍ 새 일정 추가</h3>
+    <div class="mcap">하루의 계획표에 들어가는 일정이야. 시간 순으로 자동 정렬돼.</div>
+    <form id="tlForm">
+      <div class="field row2">
+        <div>
+          <label>시간</label>
+          <input type="text" name="time" placeholder="예) 15:00 · ~15:00">
+        </div>
+        <div>
+          <label>어느 날</label>
+          <select name="day">
+            <option value="DAY1">DAY 1 (8/16)</option>
+            <option value="DAY2">DAY 2 (8/17)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>제목 <span class="req">*</span></label>
+        <input type="text" name="title" required placeholder="예) 저녁 1차">
+      </div>
+      <div class="field row2">
+        <div>
+          <label>종류</label>
+          <select name="cat">
+            <option value="이동">이동</option>
+            <option value="식당">식당</option>
+            <option value="카페">카페</option>
+            <option value="장보기">장보기</option>
+            <option value="술집">술집</option>
+            <option value="놀거리">놀거리</option>
+            <option value="숙소">숙소</option>
+          </select>
+        </div>
+        <div>
+          <label>상태</label>
+          <select name="status">
+            <option value="">표시 안 함</option>
+            <option value="확정">확정</option>
+            <option value="후보">후보</option>
+            <option value="미정">미정</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>장소명</label>
+        <input type="text" name="place" placeholder="예) 거동탕수육">
+      </div>
+      <div class="field">
+        <label>메모</label>
+        <textarea name="note" placeholder="세부 내용, 주의할 점 등"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="tlCancel">취소</button>
+        <button type="submit" class="btn-primary">저장하기</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ---------- category meta (sticker colors) ---------- */
@@ -593,38 +681,86 @@ function allSpots(){
   ];
 }
 
-/* ---------- render timeline ---------- */
+/* ---------- render timeline (editable) ---------- */
 const TAPES=["","lav","sky","mint","butter","dot"];
-function renderTL(data,el){
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+/* 기본 타임라인 항목에 안정적 id 부여 */
+DAY1.forEach((it,i)=>{it._id="d1_"+i;it._day="DAY1";});
+DAY2.forEach((it,i)=>{it._id="d2_"+i;it._day="DAY2";});
+let TL_OVR=loadLS("mukho_tl_overrides",{});   /* {기본항목id: {수정필드}} */
+let TL_CUSTOM=loadLS("mukho_tl_custom",[]);    /* 사용자 추가 일정 */
+function saveTL(){
+  localStorage.setItem("mukho_tl_overrides",JSON.stringify(TL_OVR));
+  localStorage.setItem("mukho_tl_custom",JSON.stringify(TL_CUSTOM));
+}
+function tlKey(t){const m=String(t||"").match(/(\d{1,2}):(\d{2})/);return m?(+m[1])*60+(+m[2]):9999;}
+function dayItems(dayKey){
+  const base=(dayKey==="DAY1"?DAY1:DAY2).map(it=>TL_OVR[it._id]?{...it,...TL_OVR[it._id]}:it);
+  const cust=TL_CUSTOM.filter(x=>x._day===dayKey);
+  return [...base,...cust].sort((a,b)=>tlKey(a.time)-tlKey(b.time));
+}
+function renderTL(dayKey,el){
+  const data=dayItems(dayKey);
   el.innerHTML=data.map((it,i)=>{
-    const meta=CAT[it.cat];
+    const meta=CAT[it.cat]||{hex:"#eee"};
     const clickable=it.spot?"clickable":"";
     const dataspot=it.spot?`data-spot="${it.spot}"`:"";
     const stamp=it.status?`<span class="stamp ${stampClass(it.status)}">${stampText(it.status)}</span>`:"";
     const hint=it.spot?`<span class="maphint">지도에서 보기 →</span>`:"";
     const tape=TAPES[i%TAPES.length];
+    const isOver=!it.custom&&!!TL_OVR[it._id];
+    const acts=`<div class="tl-actions">
+      <button class="edit" data-tledit="${it._id}" title="수정">✎</button>
+      ${it.custom?`<button class="del" data-tldel="${it._id}" title="삭제">✕</button>`:""}
+      ${isOver?`<button class="revert" data-tlrevert="${it._id}" title="원래대로">↺</button>`:""}
+    </div>`;
     return `<div class="entry">
-      <div class="time">${it.time}</div>
-      <div class="note-card ${clickable}" ${dataspot}>
+      <div class="time">${esc(it.time)}</div>
+      <div class="note-card ${clickable}" ${dataspot} data-tlid="${it._id}">
+        ${acts}
         <span class="tape ${tape}"></span>
         <div class="row1">
-          <span class="sticker-cat" style="--sc:${meta.hex}">${it.cat}</span>
-          <span class="what">${it.title}</span>
-          <span class="where">@ ${it.place}</span>
+          <span class="sticker-cat" style="--sc:${meta.hex}">${esc(it.cat)}</span>
+          <span class="what">${esc(it.title)}</span>
+          ${it.place?`<span class="where">@ ${esc(it.place)}</span>`:""}
           ${stamp}
         </div>
-        <div class="memo ${it.warn?'warn':''}">${it.note}</div>
+        ${it.note?`<div class="memo ${it.warn?'warn':''}">${esc(it.note)}</div>`:""}
         ${hint}
       </div>
     </div>`;
   }).join("");
+  bindTLEvents(el);
 }
-renderTL(DAY1,document.getElementById("tl1"));
-renderTL(DAY2,document.getElementById("tl2"));
+function bindTLEvents(el){
+  el.querySelectorAll('.note-card').forEach(card=>{
+    card.onclick=e=>{
+      if(e.target.closest('[data-tledit],[data-tldel],[data-tlrevert]')) return;
+      const sp=card.getAttribute('data-spot');
+      if(sp&&markers[sp]) focusSpot(sp);
+    };
+  });
+  el.querySelectorAll('[data-tledit]').forEach(b=>{b.onclick=e=>{e.stopPropagation();openTLEdit(b.dataset.tledit);};});
+  el.querySelectorAll('[data-tldel]').forEach(b=>{b.onclick=e=>{e.stopPropagation();deleteTL(b.dataset.tldel);};});
+  el.querySelectorAll('[data-tlrevert]').forEach(b=>{b.onclick=e=>{e.stopPropagation();revertTL(b.dataset.tlrevert);};});
+}
+function renderAllTL(){
+  renderTL("DAY1",document.getElementById("tl1"));
+  renderTL("DAY2",document.getElementById("tl2"));
+}
+function deleteTL(id){
+  const it=TL_CUSTOM.find(x=>x._id===id); if(!it) return;
+  if(!confirm(`"${it.title||'이 일정'}" 삭제할까?`)) return;
+  TL_CUSTOM=TL_CUSTOM.filter(x=>x._id!==id); saveTL(); renderAllTL();
+}
+function revertTL(id){
+  if(!confirm("이 일정 수정한 걸 원래대로 되돌릴까?")) return;
+  delete TL_OVR[id]; saveTL(); renderAllTL();
+}
+renderAllTL();
 
 /* ---------- render place cards ---------- */
 const ORDER=["숙소","식당","카페","장보기","술집","놀거리","이동"];
-const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function renderPlaces(){
   const wrap=document.getElementById("placewrap");
   const spots=allSpots();
@@ -772,12 +908,8 @@ function buildFilters(){
     });
   });
 }
-/* 타임라인 카드 클릭(고정 데이터) */
-document.querySelectorAll('#tl1 [data-spot],#tl2 [data-spot]').forEach(el=>{
-  el.addEventListener('click',()=>focusSpot(el.dataset.spot));
-});
-
 redrawMarkers();
+renderAllTL();  /* 지도 markers 준비된 뒤 타임라인 클릭연결 재바인딩 */
 bindPlaceEvents();
 
 /* ---------- add place: modal + form ---------- */
@@ -876,6 +1008,57 @@ addForm.addEventListener('submit',e=>{
   /* 방금 저장한 카드로 스크롤 */
   const card=document.querySelector(`#placewrap [data-spot="${savedId}"]`);
   if(card){card.scrollIntoView({behavior:'smooth',block:'center'});}
+});
+
+/* ---------- timeline: modal + form ---------- */
+const tlOverlay=document.getElementById('tlOverlay');
+const tlForm=document.getElementById('tlForm');
+const tlTitle=document.getElementById('tlTitle');
+let tlEditingId=null;
+function findTL(id){return [...dayItems("DAY1"),...dayItems("DAY2")].find(x=>x._id===id);}
+function openTLAdd(day){
+  tlEditingId=null; tlForm.reset();
+  tlForm.elements.day.disabled=false;
+  if(day) tlForm.elements.day.value=day;
+  tlTitle.textContent="✍ 새 일정 추가";
+  tlOverlay.classList.add('open');
+}
+function openTLEdit(id){
+  const it=findTL(id); if(!it) return;
+  tlEditingId=id;
+  const f=tlForm.elements;
+  f.time.value=it.time||""; f.title.value=it.title||"";
+  f.cat.value=it.cat||"이동"; f.status.value=it.status||"";
+  f.place.value=it.place||""; f.note.value=it.note||"";
+  f.day.value=it._day||"DAY1";
+  f.day.disabled=!it.custom;   /* 기본 일정은 날짜 이동 불가 */
+  tlTitle.textContent="✍ 일정 수정";
+  tlOverlay.classList.add('open');
+}
+function closeTL(){tlOverlay.classList.remove('open');tlEditingId=null;tlForm.reset();tlForm.elements.day.disabled=false;}
+document.getElementById('tlClose').addEventListener('click',closeTL);
+document.getElementById('tlCancel').addEventListener('click',closeTL);
+tlOverlay.addEventListener('click',e=>{if(e.target===tlOverlay)closeTL();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tlOverlay.classList.contains('open'))closeTL();});
+document.querySelectorAll('[data-addday]').forEach(b=>{
+  b.addEventListener('click',()=>openTLAdd(b.dataset.addday));
+});
+tlForm.addEventListener('submit',e=>{
+  e.preventDefault();
+  const f=tlForm.elements;
+  const title=f.title.value.trim();
+  if(!title){f.title.focus();return;}
+  const fields={time:f.time.value.trim(),title,cat:f.cat.value,status:f.status.value,
+    place:f.place.value.trim(),note:f.note.value.trim()};
+  const day=f.day.value;
+  if(tlEditingId){
+    const ci=TL_CUSTOM.findIndex(x=>x._id===tlEditingId);
+    if(ci>=0){TL_CUSTOM[ci]={...TL_CUSTOM[ci],...fields,_day:day};}
+    else{TL_OVR[tlEditingId]=fields;}   /* 기본 일정 → 오버라이드 */
+  }else{
+    TL_CUSTOM.push({_id:"tlc_"+Date.now(),_day:day,custom:true,...fields});
+  }
+  saveTL(); renderAllTL(); closeTL();
 });
 
 /* ---------- checklist (localStorage) ---------- */
