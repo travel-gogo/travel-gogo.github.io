@@ -149,6 +149,13 @@
     color:var(--soft);cursor:pointer;transition:.12s;
   }
   .tl-addbtn:hover{border-color:var(--pen-blue);color:var(--pen-blue);background:#fff}
+  .tl-restore{
+    display:block;width:fit-content;
+    font-family:"Gowun Dodum",sans-serif;font-size:12.5px;padding:4px 15px;margin:0 0 6px;
+    border:1.6px dashed var(--pen-green);border-radius:20px;background:rgba(255,255,255,.5);
+    color:var(--pen-green);cursor:pointer;transition:.12s;
+  }
+  .tl-restore:hover{background:#fff}
 
   /* ---------- map polaroid ---------- */
   .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
@@ -394,10 +401,12 @@
     <div class="daytab"><span class="chip">DAY 1</span> 8월 16일 일요일 ☀️바다!</div>
     <div id="tl1"></div>
     <button class="tl-addbtn" data-addday="DAY1">＋ DAY 1 일정 추가</button>
+    <button class="tl-restore" data-restoreday="DAY1" style="display:none"></button>
 
     <div class="daytab" style="margin-top:34px"><span class="chip" style="background:var(--mint)">DAY 2</span> 8월 17일 월요일 ☕해장...</div>
     <div id="tl2"></div>
     <button class="tl-addbtn" data-addday="DAY2">＋ DAY 2 일정 추가</button>
+    <button class="tl-restore" data-restoreday="DAY2" style="display:none"></button>
   </section>
 
   <!-- ===== MAP ===== -->
@@ -690,13 +699,18 @@ DAY1.forEach((it,i)=>{it._id="d1_"+i;it._day="DAY1";});
 DAY2.forEach((it,i)=>{it._id="d2_"+i;it._day="DAY2";});
 let TL_OVR=loadLS("mukho_tl_overrides",{});   /* {기본항목id: {수정필드}} */
 let TL_CUSTOM=loadLS("mukho_tl_custom",[]);    /* 사용자 추가 일정 */
+let TL_HIDDEN=loadLS("mukho_tl_hidden",[]);    /* 숨긴 기본 일정 id (되살리기 가능) */
 function saveTL(){
   localStorage.setItem("mukho_tl_overrides",JSON.stringify(TL_OVR));
   localStorage.setItem("mukho_tl_custom",JSON.stringify(TL_CUSTOM));
+  localStorage.setItem("mukho_tl_hidden",JSON.stringify(TL_HIDDEN));
 }
 function tlKey(t){const m=String(t||"").match(/(\d{1,2}):(\d{2})/);return m?(+m[1])*60+(+m[2]):9999;}
 function dayItems(dayKey){
-  const base=(dayKey==="DAY1"?DAY1:DAY2).map(it=>TL_OVR[it._id]?{...it,...TL_OVR[it._id]}:it);
+  const hidden=new Set(TL_HIDDEN);
+  const base=(dayKey==="DAY1"?DAY1:DAY2)
+    .filter(it=>!hidden.has(it._id))
+    .map(it=>TL_OVR[it._id]?{...it,...TL_OVR[it._id]}:it);
   const cust=TL_CUSTOM.filter(x=>x._day===dayKey);
   return [...base,...cust].sort((a,b)=>tlKey(a.time)-tlKey(b.time));
 }
@@ -712,7 +726,7 @@ function renderTL(dayKey,el){
     const isOver=!it.custom&&!!TL_OVR[it._id];
     const acts=`<div class="tl-actions">
       <button class="edit" data-tledit="${it._id}" title="수정">✎</button>
-      ${it.custom?`<button class="del" data-tldel="${it._id}" title="삭제">✕</button>`:""}
+      <button class="del" data-tldel="${it._id}" title="삭제">✕</button>
       ${isOver?`<button class="revert" data-tlrevert="${it._id}" title="원래대로">↺</button>`:""}
     </div>`;
     return `<div class="entry">
@@ -748,11 +762,35 @@ function bindTLEvents(el){
 function renderAllTL(){
   renderTL("DAY1",document.getElementById("tl1"));
   renderTL("DAY2",document.getElementById("tl2"));
+  updateRestore();
+}
+function updateRestore(){
+  ["DAY1","DAY2"].forEach(day=>{
+    const btn=document.querySelector(`[data-restoreday="${day}"]`);
+    if(!btn) return;
+    const n=(day==="DAY1"?DAY1:DAY2).filter(it=>TL_HIDDEN.includes(it._id)).length;
+    if(n>0){btn.style.display="";btn.textContent=`↩ 숨긴 일정 ${n}개 되살리기`;}
+    else{btn.style.display="none";}
+  });
+}
+function restoreDay(day){
+  const ids=(day==="DAY1"?DAY1:DAY2).map(it=>it._id);
+  TL_HIDDEN=TL_HIDDEN.filter(id=>!ids.includes(id));
+  saveTL(); renderAllTL();
 }
 function deleteTL(id){
-  const it=TL_CUSTOM.find(x=>x._id===id); if(!it) return;
-  if(!confirm(`"${it.title||'이 일정'}" 삭제할까?`)) return;
-  TL_CUSTOM=TL_CUSTOM.filter(x=>x._id!==id); saveTL(); renderAllTL();
+  const cust=TL_CUSTOM.find(x=>x._id===id);
+  if(cust){
+    /* 내가 추가한 일정 → 완전 삭제 */
+    if(!confirm(`"${cust.title||'이 일정'}" 삭제할까?`)) return;
+    TL_CUSTOM=TL_CUSTOM.filter(x=>x._id!==id);
+  }else{
+    /* 원래 있던 일정 → 숨김 (아래 '되살리기'로 복구 가능) */
+    const base=[...DAY1,...DAY2].find(x=>x._id===id);
+    if(!confirm(`"${(base&&base.title)||'이 일정'}" 삭제할까?\n(아래 '되살리기'로 되돌릴 수 있어)`)) return;
+    if(!TL_HIDDEN.includes(id)) TL_HIDDEN.push(id);
+  }
+  saveTL(); renderAllTL();
 }
 function revertTL(id){
   if(!confirm("이 일정 수정한 걸 원래대로 되돌릴까?")) return;
@@ -1043,6 +1081,9 @@ tlOverlay.addEventListener('click',e=>{if(e.target===tlOverlay)closeTL();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tlOverlay.classList.contains('open'))closeTL();});
 document.querySelectorAll('[data-addday]').forEach(b=>{
   b.addEventListener('click',()=>openTLAdd(b.dataset.addday));
+});
+document.querySelectorAll('[data-restoreday]').forEach(b=>{
+  b.addEventListener('click',()=>restoreDay(b.dataset.restoreday));
 });
 tlForm.addEventListener('submit',e=>{
   e.preventDefault();
