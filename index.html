@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>묵호항 다이어리 · 8.16–17</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root{
+    --paper:#FBF7EC; --grid:#E4DECC; --ink:#3B3630; --soft:#8A8272;
+    --pink:#F6C9D3; --lav:#CDC4E8; --sky:#BDD8EE; --mint:#C4E3D2;
+    --butter:#F7E6A9; --peach:#F8D8BC;
+    --pen-blue:#4A6C9B; --pen-red:#C25B4E; --pen-green:#5E8C61;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Gowun Dodum",sans-serif;color:var(--ink);font-size:15.5px;line-height:1.65;
+    background:
+      repeating-linear-gradient(0deg,transparent,transparent 27px,var(--grid) 27px,var(--grid) 28px),
+      repeating-linear-gradient(90deg,transparent,transparent 27px,var(--grid) 27px,var(--grid) 28px),
+      var(--paper);
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:0 18px}
+
+  /* ---------- washi tape ---------- */
+  .tape{
+    position:absolute;height:26px;width:110px;opacity:.9;
+    box-shadow:0 1px 3px rgba(0,0,0,.12);
+    background:repeating-linear-gradient(45deg,var(--pink),var(--pink) 8px,#fff 8px,#fff 16px);
+  }
+  .tape.lav{background:repeating-linear-gradient(-45deg,var(--lav),var(--lav) 8px,#fff 8px,#fff 16px)}
+  .tape.sky{background:repeating-linear-gradient(45deg,var(--sky),var(--sky) 10px,#fff 10px,#fff 14px)}
+  .tape.mint{background:var(--mint);opacity:.75}
+  .tape.butter{background:var(--butter);opacity:.8}
+  .tape.dot{background:var(--peach) radial-gradient(#fff 20%,transparent 22%);background-size:12px 12px;opacity:.85}
+
+  /* ---------- header ---------- */
+  header{padding:64px 0 24px;position:relative;text-align:center}
+  .banner{
+    display:inline-block;position:relative;background:#DCD5C4;color:var(--ink);
+    font-family:"Jua",sans-serif;font-size:16px;letter-spacing:.3em;
+    padding:5px 26px;transform:rotate(-1.4deg);
+    clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%);
+  }
+  header h1{
+    font-family:"Nanum Pen Script",cursive;font-size:clamp(58px,13vw,96px);
+    line-height:1;margin:14px 0 2px;transform:rotate(-.6deg);
+  }
+  header h1 .wave{color:var(--pen-blue)}
+  header .subtitle{font-family:"Gowun Dodum",sans-serif;font-size:16.5px;color:var(--soft);transform:rotate(-.4deg)}
+  .ticket{
+    display:inline-block;background:#fff;border:2px dashed var(--soft);border-radius:14px;
+    padding:12px 8px 10px;margin-top:26px;transform:rotate(.8deg);position:relative;
+    box-shadow:2px 3px 0 rgba(59,54,48,.08);
+  }
+  .ticket .tape{top:-14px;left:50%;transform:translateX(-50%) rotate(-2deg)}
+  .ticket table{border-collapse:collapse;font-size:14px}
+  .ticket td{padding:2px 14px;text-align:left}
+  .ticket td.k{font-family:"Gowun Dodum",sans-serif;color:var(--pen-blue);font-size:13.5px;font-weight:700;border-right:1.5px dotted var(--grid)}
+  .doodle{position:absolute;pointer-events:none}
+
+  /* ---------- section title ---------- */
+  section{padding:44px 0 6px;position:relative}
+  .stitle{
+    display:inline-block;position:relative;margin-bottom:6px;
+    font-family:"Jua",sans-serif;font-size:29px;transform:rotate(-.8deg);
+    padding:0 10px;
+  }
+  .stitle::before{ /* speckled highlighter */
+    content:"";position:absolute;left:-4px;right:-4px;top:52%;height:.62em;z-index:-1;
+    transform:translateY(-38%) rotate(-.5deg);border-radius:4px;
+    background:var(--hl,var(--lav)) radial-gradient(rgba(255,255,255,.55) 18%,transparent 20%);
+    background-size:7px 7px;opacity:.65;
+  }
+  .scap{font-family:"Gowun Dodum",sans-serif;font-size:14px;color:var(--soft);margin-bottom:20px}
+  .squig{display:block;width:120px;margin:2px 0 14px}
+
+  /* ---------- diary timeline ---------- */
+  .daytab{
+    display:inline-flex;align-items:center;gap:10px;margin:10px 0 18px;position:relative;
+    font-family:"Jua",sans-serif;font-size:23px;
+  }
+  .daytab .chip{
+    background:var(--butter);padding:2px 16px;border-radius:30px;transform:rotate(-2deg);
+    border:1.8px solid var(--ink);box-shadow:2px 2px 0 rgba(59,54,48,.15);font-size:18px;
+  }
+  .entry{
+    display:grid;grid-template-columns:86px 1fr;gap:12px;margin-bottom:14px;align-items:start;
+  }
+  .entry .time{
+    font-family:"Jua",sans-serif;font-size:17px;color:var(--pen-blue);
+    text-align:right;padding-top:12px;position:relative;
+  }
+  .entry .time::after{content:"";position:absolute;right:-8px;top:24px;width:5px;height:5px;
+    border-radius:50%;background:var(--pen-blue)}
+  .note-card{
+    background:#fff;border-radius:4px;padding:14px 16px 12px;position:relative;
+    box-shadow:1px 2px 5px rgba(59,54,48,.10);
+  }
+  .entry:nth-child(odd) .note-card{transform:rotate(.4deg)}
+  .entry:nth-child(even) .note-card{transform:rotate(-.4deg)}
+  .note-card.clickable{cursor:pointer;transition:transform .15s,box-shadow .15s}
+  .note-card.clickable:hover{transform:rotate(0) translateY(-2px);box-shadow:2px 4px 12px rgba(59,54,48,.18)}
+  .note-card .tape{width:74px;height:20px;top:-11px;left:16px;transform:rotate(-3deg)}
+  .note-card .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .note-card .what{font-family:"Jua",sans-serif;font-size:16.5px}
+  .note-card .where{font-family:"Gowun Dodum",sans-serif;font-size:14px;font-weight:700;color:var(--pen-blue)}
+  .note-card .memo{font-size:13.5px;color:var(--soft);margin-top:4px;line-height:1.6}
+  .note-card .memo.warn{color:var(--pen-red)}
+  .note-card .memo.warn::before{content:"!! ";font-weight:700}
+  .sticker-cat{
+    font-family:"Gowun Dodum",sans-serif;font-size:11.5px;padding:1px 10px;border-radius:20px;
+    border:1.5px solid var(--ink);background:var(--sc,#eee);transform:rotate(-2deg);
+    display:inline-block;box-shadow:1px 1px 0 rgba(59,54,48,.2);
+  }
+  .stamp{
+    font-family:"Gowun Dodum",sans-serif;font-size:11px;padding:1px 8px;border-radius:4px;
+    border:1.5px dashed;transform:rotate(2deg);display:inline-block;
+  }
+  .st-fix{color:var(--pen-green);border-color:var(--pen-green)}
+  .st-cand{color:#C08A2D;border-color:#C08A2D}
+  .st-tbd{color:var(--soft);border-color:var(--soft)}
+  .maphint{font-family:"Gowun Dodum",sans-serif;font-size:11px;color:var(--pen-blue);
+    position:absolute;right:12px;bottom:8px;opacity:.75}
+
+  /* ---------- map polaroid ---------- */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+  .fbtn{
+    font-family:"Gowun Dodum",sans-serif;font-size:13.5px;padding:3px 14px;border-radius:20px;cursor:pointer;
+    border:1.8px solid var(--ink);background:#fff;color:var(--ink);
+    box-shadow:1.5px 1.5px 0 rgba(59,54,48,.2);transition:.12s;
+    display:inline-flex;align-items:center;gap:7px;
+  }
+  .fbtn:hover{transform:translateY(-1px)}
+  .fbtn .swatch{width:10px;height:10px;border-radius:50%;border:1px solid rgba(59,54,48,.3)}
+  .fbtn.active{background:var(--ink);color:#fff}
+  .polaroid{
+    background:#fff;padding:14px 14px 20px;transform:rotate(-.6deg);position:relative;
+    box-shadow:2px 5px 16px rgba(59,54,48,.16);border-radius:3px;
+  }
+  .polaroid .tape{top:-13px;left:-24px;transform:rotate(-40deg);width:90px}
+  .polaroid .tape.t2{left:auto;right:-24px;transform:rotate(40deg)}
+  #map{height:500px;border-radius:2px;z-index:1;border:1px solid var(--grid)}
+  .polaroid .capt{font-family:"Nanum Pen Script",cursive;font-size:24px;text-align:center;margin-top:10px}
+  .leaflet-popup-content-wrapper{border-radius:8px;font-family:"Gowun Dodum",sans-serif}
+  .leaflet-popup-content{margin:12px 14px}
+  .pop-cat{font-family:"Gowun Dodum",sans-serif;font-size:11px;padding:1px 9px;border-radius:14px;
+    border:1.5px solid var(--ink);display:inline-block}
+  .pop-name{font-family:"Jua",sans-serif;font-size:18px;margin:5px 0 2px}
+  .pop-note{font-size:12.5px;color:var(--soft);line-height:1.5}
+  .pop-meta{font-size:12px;color:var(--pen-blue);margin-top:6px;font-family:"Gowun Dodum",sans-serif}
+
+  /* ---------- place stickers ---------- */
+  .catblock{margin-bottom:34px}
+  .catbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .catbar .label{
+    font-family:"Jua",sans-serif;font-size:20px;padding:3px 16px;
+    border:2px dashed var(--ink);border-radius:30px;transform:rotate(-1deg);
+    background:rgba(255,255,255,.6);
+  }
+  .catbar .label::before{content:"★ ";font-size:19px}
+  .catbar .cnt{font-family:"Gowun Dodum",sans-serif;color:var(--soft);font-size:13px}
+  .grid-p{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+  .pcard{
+    background:#fff;border-radius:6px;padding:16px 16px 13px;position:relative;cursor:pointer;
+    box-shadow:1px 3px 8px rgba(59,54,48,.10);transition:.15s;
+    border:1px solid rgba(59,54,48,.06);
+  }
+  .grid-p .pcard:nth-child(3n+1){transform:rotate(-.7deg)}
+  .grid-p .pcard:nth-child(3n+2){transform:rotate(.5deg)}
+  .grid-p .pcard:nth-child(3n){transform:rotate(-.3deg)}
+  .pcard:hover{transform:rotate(0) translateY(-3px);box-shadow:2px 6px 16px rgba(59,54,48,.18)}
+  .pcard .tape{width:64px;height:18px;top:-10px;right:14px;transform:rotate(4deg)}
+  .pcard .pn{font-family:"Jua",sans-serif;font-size:19px;line-height:1.25}
+  .pcard .when{font-family:"Gowun Dodum",sans-serif;font-size:12px;color:var(--soft)}
+  .pcard .ph{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:8px}
+  .pcard .meta{font-size:13px;margin:2px 0;display:flex;gap:8px;align-items:flex-start;color:var(--ink)}
+  .pcard .meta .ic{color:var(--pen-blue);flex-shrink:0;font-size:14px;padding-top:1px}
+  .pcard .pnote{
+    font-size:13px;color:var(--soft);margin-top:9px;line-height:1.5;
+    border-top:1.5px dotted var(--grid);padding-top:8px;
+  }
+  .pcard .pnote.warn{color:var(--pen-red)}
+
+  /* ---------- checklist ---------- */
+  .memo-pad{
+    position:relative;border-radius:6px;padding:28px 26px 24px;margin-top:8px;
+    background:var(--lav) radial-gradient(rgba(255,255,255,.6) 16%,transparent 18%);
+    background-size:9px 9px;box-shadow:2px 4px 12px rgba(59,54,48,.14);transform:rotate(-.3deg);
+  }
+  .memo-pad .tape{top:-13px;left:32px;transform:rotate(-2deg)}
+  .memo-pad .tape.t2{left:auto;right:32px;transform:rotate(3deg)}
+  .memo-pad h3{font-family:"Jua",sans-serif;font-size:25px;margin-bottom:4px}
+  .memo-pad .cap{font-family:"Gowun Dodum",sans-serif;font-size:13.5px;color:#5B5470;margin-bottom:16px}
+  .memo-pad ul{list-style:none;display:grid;gap:9px}
+  .memo-pad li{
+    display:flex;gap:11px;align-items:flex-start;font-size:13.5px;
+    background:rgba(255,255,255,.72);padding:10px 14px;border-radius:6px;
+  }
+  .memo-pad li .box{
+    flex-shrink:0;width:19px;height:19px;border:2px solid var(--ink);border-radius:4px;
+    margin-top:3px;transform:rotate(-2deg);background:#fff;
+  }
+  .memo-pad li b{color:var(--pen-blue)}
+
+  footer{
+    text-align:center;font-family:"Gowun Dodum",sans-serif;color:var(--soft);
+    font-size:13.5px;padding:48px 20px 64px;line-height:1.9;
+  }
+  footer .heart{color:var(--pen-red)}
+
+  @media(max-width:560px){
+    body{font-size:14.5px}
+    .entry{grid-template-columns:66px 1fr}
+    .entry .time{font-size:15px}
+    #map{height:420px}
+    .ticket td{padding:2px 8px;font-size:12.5px}
+  }
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <!-- doodles -->
+  <svg class="doodle" style="top:34px;left:6%" width="34" height="34" viewBox="0 0 34 34"><path d="M17 2 L20 13 L31 15 L20 19 L17 31 L14 19 L3 15 L14 13 Z" fill="#F2A9BC"/></svg>
+  <svg class="doodle" style="top:120px;right:7%" width="26" height="26" viewBox="0 0 26 26"><path d="M13 1 L15 10 L24 12 L15 15 L13 24 L11 15 L2 12 L11 10 Z" fill="#3B3630"/></svg>
+  <svg class="doodle" style="top:200px;left:11%" width="60" height="16" viewBox="0 0 60 16"><path d="M2 8 Q8 2 14 8 T26 8 T38 8 T50 8 T58 8" stroke="#9FBFE0" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+
+  <div class="banner">묵 호 항 · 한 바 퀴</div>
+  <h1>바다로 가는 날 <span class="wave">〜</span></h1>
+  <div class="subtitle">2026.8.16 – 8.17 ⋆ 여섯 명이서 일출로를 걷는 1박 2일</div>
+
+  <div class="ticket">
+    <span class="tape sky"></span>
+    <table>
+      <tr><td class="k">날짜</td><td>8/16(일) – 8/17(월) · 1박 2일</td></tr>
+      <tr><td class="k">인원</td><td>6명 (전원 음주 예정 ¯\_(ツ)_/¯)</td></tr>
+      <tr><td class="k">가는 편</td><td>청량리 09:37 → 묵호 11:43 (예매 완료!)</td></tr>
+      <tr><td class="k">오는 편</td><td>묵호 15:48 → 청량리 17:49 · KTX 886 (예매하기!)</td></tr>
+    </table>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== TIMETABLE ===== -->
+  <section id="timetable">
+    <div class="stitle" style="--hl:var(--butter)">하루의 계획표</div>
+    <svg class="squig" height="10" viewBox="0 0 120 10"><path d="M2 5 Q10 1 18 5 T34 5 T50 5 T66 5 T82 5 T98 5 T114 5" stroke="#E8A0B4" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="scap">도착 11:43 기준 · 체크인 15:00 / 체크아웃 11:00은 아직 가정값!</div>
+
+    <div class="daytab"><span class="chip">DAY 1</span> 8월 16일 일요일 ☀️바다!</div>
+    <div id="tl1"></div>
+
+    <div class="daytab" style="margin-top:34px"><span class="chip" style="background:var(--mint)">DAY 2</span> 8월 17일 월요일 ☕해장...</div>
+    <div id="tl2"></div>
+  </section>
+
+  <!-- ===== MAP ===== -->
+  <section id="mapsec">
+    <div class="stitle" style="--hl:var(--sky)">우리 동선 지도</div>
+    <svg class="squig" height="10" viewBox="0 0 120 10"><path d="M2 5 Q10 1 18 5 T34 5 T50 5 T66 5 T82 5 T98 5 T114 5" stroke="#9FBFE0" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="scap">거의 다 묵호항 근처에 옹기종기 · 한섬만 남쪽으로 살짝(차 12분) · 카드 누르면 핀으로 날아감!</div>
+    <div class="filters" id="filters"></div>
+    <div class="polaroid">
+      <span class="tape"></span><span class="tape lav t2"></span>
+      <div id="map"></div>
+      <div class="capt">묵호항 반경 1.5km에 다 있음 ⛵</div>
+    </div>
+  </section>
+
+  <!-- ===== PLACES ===== -->
+  <section id="places">
+    <div class="stitle" style="--hl:var(--pink)">장소 수첩</div>
+    <svg class="squig" height="10" viewBox="0 0 120 10"><path d="M2 5 Q10 1 18 5 T34 5 T50 5 T66 5 T82 5 T98 5 T114 5" stroke="#A9CDB6" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="scap">영업시간은 2026.07에 적어둔 것 · 가기 전에 한 번 더 확인하기!</div>
+    <div id="placewrap"></div>
+  </section>
+
+  <!-- ===== CHECKLIST ===== -->
+  <section id="todo">
+    <div class="stitle" style="--hl:var(--mint)">아직 못 정한 것들</div>
+    <svg class="squig" height="10" viewBox="0 0 120 10"><path d="M2 5 Q10 1 18 5 T34 5 T50 5 T66 5 T82 5 T98 5 T114 5" stroke="#C9B9E8" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="memo-pad">
+      <span class="tape butter"></span><span class="tape dot t2"></span>
+      <h3>✍ 출발 전 체크리스트</h3>
+      <div class="cap">정해지면 하나씩 지워나가기~</div>
+      <ul>
+        <li><span class="box"></span><span><b>이동수단</b> — 렌트 vs 택시. 다들 마실 거라 밤엔 택시, 낮엔 렌트(짐+6명)가 편한 조합</span></li>
+        <li><span class="box"></span><span><b>저녁 1차 식당</b> — 탕수육이나 국밥류로 생각 중. 19:30까진 끝내야 함(장보기 마감!)</span></li>
+        <li><span class="box"></span><span><b>2일차 카페</b> — 후보 6곳! 그날 컨디션 보고 고르기</span></li>
+        <li><span class="box"></span><span><b>미담펜션 체크인/아웃 시각</b> 확인 (지금은 15:00/11:00으로 가정해둠)</span></li>
+        <li><span class="box"></span><span><b>귀가 열차 예매</b> — 886편, 15:48 묵호 출발</span></li>
+        <li><span class="box"></span><span><b>어달해변포차</b> 8/16 운영하는지 + 날씨 (노지라서 비 오면 큰일)</span></li>
+        <li><span class="box"></span><span><b>문어닭강정 예약 전화</b> — 주말엔 금방 품절된대!</span></li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  ⋆ 묵호항 1박 2일 · 여섯 명 · 2026.08.16 – 17 ⋆<br>
+  맛있는 거 많이 먹고 오자 <span class="heart">♥</span>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ---------- category meta (sticker colors) ---------- */
+const CAT = {
+  이동:{hex:"#BFC9D9",pin:"#6D7F99"},
+  식당:{hex:"#F6C1B5",pin:"#C25B4E"},
+  카페:{hex:"#C4E3D2",pin:"#4E8C6B"},
+  장보기:{hex:"#DCE8B0",pin:"#7E9440"},
+  술집:{hex:"#E7C3DC",pin:"#9A5586"},
+  놀거리:{hex:"#BDD8EE",pin:"#4A6C9B"},
+  숙소:{hex:"#F7E6A9",pin:"#C0912D"},
+};
+const stampClass = s => s==="확정"?"st-fix":(s==="후보"?"st-cand":"st-tbd");
+const stampText  = s => s==="확정"?"확정!":(s==="후보"?"후보":"미정...");
+
+/* ---------- timeline data ---------- */
+const DAY1=[
+ {time:"09:37",title:"청량리역 출발",cat:"이동",place:"청량리역",note:"KTX-이음 · 스마트티켓 6매 (예매 완료)"},
+ {time:"11:43",title:"묵호역 도착!",cat:"이동",place:"묵호역",note:"이후 이동수단 미정 (렌트하면 역 근처에서 픽업)",spot:"mukho"},
+ {time:"12:00",title:"점심",cat:"식당",place:"거동탕수육",note:"문어짬뽕 + 탕수육. 주말 웨이팅 심하니까 도착하자마자 웨이팅 등록!",spot:"geodong",status:"후보"},
+ {time:"~15:00",title:"자유시간",cat:"이동",place:"묵호항 일대",note:"점심 웨이팅 길어지면 여기서 흡수"},
+ {time:"15:00",title:"체크인",cat:"숙소",place:"미담펜션",note:"체크인 시각은 가정값, 확인해두기",spot:"midam"},
+ {time:"15:30",title:"바다 산책",cat:"놀거리",place:"한섬해수욕장",note:"감성바닷길 데크 + 포토존. 펜션에서 남쪽으로 차 12분",spot:"hanseom",status:"확정"},
+ {time:"18:00",title:"저녁 1차",cat:"식당",place:"미정",note:"탕수육/국밥류로 생각 중. 19:30까지 끝내야 함 (장보기 마감이 연쇄로 걸림)",status:"미정",warn:true},
+ {time:"19:30",title:"장보기 타임",cat:"장보기",place:"야시장 · 닭강정 + 어판장 회",note:"닭강정 20:00 마감(주말 품절! 예약 필수) / 어판장 회 ~21:00",spot:"dakgangjeong",status:"확정",warn:true},
+ {time:"20:00",title:"저녁 2차",cat:"술집",place:"어달해변포차",note:"해변 노지 · 7~8월 한정. 비 오면 변수. 펜션에서 차 5분",spot:"eodal",status:"확정"},
+ {time:"22:00",title:"저녁 3차",cat:"숙소",place:"미담펜션",note:"닭강정 + 회 + 술. 회부터 먹기(신선도)",spot:"midam",status:"확정"},
+];
+const DAY2=[
+ {time:"11:00",title:"체크아웃",cat:"숙소",place:"미담펜션",note:"가정값 (확인 필요)",spot:"midam"},
+ {time:"11:30",title:"해장 점심",cat:"식당",place:"비비소",note:"육회짬뽕국밥으로 부활하기",spot:"bibiso",status:"확정"},
+ {time:"13:00",title:"카페 타임",cat:"카페",place:"미정 · 후보 6곳",note:"아래 장소 수첩의 카페 후보 중 그날 골라잡기",status:"미정"},
+ {time:"15:48",title:"묵호역 출발",cat:"이동",place:"KTX-이음 886",note:"→ 17:49 청량리 도착. 좌석 예매 잊지 말기!",spot:"mukho",status:"확정"},
+];
+
+/* ---------- place data ---------- */
+const SPOTS=[
+ {id:"midam",cat:"숙소",name:"미담펜션",status:"확정",when:"숙소 · 3차 술자리",lat:37.5548616,lng:129.1158414,
+  addr:"동해시 논산3길 17-1",tel:"010-9951-4726",hours:"체크인 15:00 / 체크아웃 11:00 (가정)",
+  note:"Airbnb 예약. 3차 술자리 장소. 냉장고 있는지 확인해두기 (회 보관용!)"},
+ {id:"mukho",cat:"이동",name:"묵호역",status:"확정",when:"교통 허브",lat:37.54673,lng:129.107726,
+  addr:"동해시 발한동",tel:null,hours:"도착 8/16 11:43 · 출발 8/17 15:48",
+  note:"귀가는 KTX-이음 886 (15:48 → 17:49 청량리). 좌석 예매하기!"},
+ {id:"geodong",cat:"식당",name:"거동탕수육",status:"후보",when:"1일차 점심 후보",lat:37.5524823,lng:129.1167566,
+  addr:"동해시 일출로 83",tel:"033-532-4778",hours:"미확인 (전화 확인 권장)",
+  note:"중식. 문어짬뽕 + 탕수육(반매반기 가능). 평점 4.0. 주말 웨이팅 엄청 기니까 웨이팅 걸고 딴 데 갔다 오기. 펜션에서 300m!"},
+ {id:"dakgangjeong",cat:"장보기",name:"묵호항닭 문어닭강정",status:"확정",when:"3차용 장보기",lat:37.552387,lng:129.1144475,
+  addr:"묵호진동 (묵호항 앞)",tel:null,hours:"일 11:00~20:00 (수요일 휴무)",
+  note:"문어 3만 / 새우 2.8만 / 견과 2.2만. 주말엔 금방 품절! 미리 전화 예약하고 픽업만 하기."},
+ {id:"eopanjang",cat:"장보기",name:"묵호항 어판장 수산물센터",status:"확정",when:"3차용 장보기 (회)",lat:37.5522989,lng:129.1138463,
+  addr:"묵호진동 (묵호항)",tel:"010-5589-3634",hours:"매일 06:00~21:00",
+  note:"회 사는 곳. 뜨는값은 생선값의 20% 정도 별도(현금/계좌). 흥정 가능. 닭강정 가게에서 150m라 한 번에 픽업!"},
+ {id:"eodal",cat:"술집",name:"어달해변포차",status:"확정",when:"저녁 2차",lat:37.5677138,lng:129.1185399,
+  addr:"동해시 어달동 어달해수욕장 백사장",tel:null,hours:"7~8월 시즌 한정 · 야간",
+  note:"해변 모래사장 노지 포차. 비 오면 운영 변수라 당일 날씨 확인 + 실내 플랜B 생각해두기. 펜션에서 차 5분.",warn:true},
+ {id:"bibiso",cat:"식당",name:"비비소",status:"확정",when:"2일차 점심 (해장)",lat:37.5520882,lng:129.1181223,
+  addr:"동해시 일출로 95, 1층",tel:"033-534-0038",hours:"미확인 (월요일 영업 확인 권장)",
+  note:"육회짬뽕국밥 = 해장 픽. 육회비빔밥·튀김도 맛있대. 펜션에서 350m."},
+ {id:"hanseom",cat:"놀거리",name:"한섬해수욕장",status:"확정",when:"1일차 놀거리",lat:37.5200,lng:129.1220,
+  addr:"동해시 천곡동 735-1",tel:null,hours:"상시 (무료)",
+  note:"감성바닷길 데크 산책로 + 포토존(터널, 흔들의자). 감추사 방면 코스. 주차장 좁음. 펜션에서 남쪽 차 12분."},
+ {id:"deungdae",cat:"카페",name:"등대카페",status:"후보",when:"2일차 카페 후보",lat:37.5543,lng:129.1190,
+  addr:"동해시 등대오름길 (묵호등대공원 내)",tel:null,hours:"매일 06:00~20:00",
+  note:"사방이 바다 뷰. 묵호샌드위치 유명한데 금방 품절. 커피 저렴. 평점 4.2"},
+ {id:"m287",cat:"카페",name:"묵호287",status:"후보",when:"2일차 카페 후보",lat:37.5551,lng:129.1182,
+  addr:"동해시 묵호동 (도째비골 언덕 위)",tel:"010-4229-8809",hours:"미확인",
+  note:"뷰는 최상급. 근데 언덕 꼭대기 오르막이라 숙취 컨디션 고려하기 ㅋㅋ 평점 4.6"},
+ {id:"hangyeol",cat:"카페",name:"카페 한결",status:"후보",when:"2일차 카페 후보",lat:37.5596,lng:129.1199,
+  addr:"동해시 일출로 195",tel:null,hours:"매일 10:00~21:00",
+  note:"'나혼자산다' 나온 카페. 2·3층 오션뷰. 평지라 걷기 편함. 평점 4.5"},
+ {id:"miyuki",cat:"카페",name:"미유키말차",status:"후보",when:"2일차 카페 후보",lat:37.5588547,lng:129.1201533,
+  addr:"동해시 일출로 185-1",tel:"070-8824-1952",hours:"매일 10:00~20:00",
+  note:"말차·호지차 라떼 맛집. 일본풍 2층 다다미방. 어달방파제 바로 앞이라 바다 산책 세트. 주말 웨이팅 있음. 평점 4.5"},
+ {id:"mukhodabang",cat:"카페",name:"묵호다방",status:"후보",when:"2일차 카페 후보",lat:37.5561194,lng:129.1207868,
+  addr:"동해시 일출로 151, 1층 20호",tel:null,hours:"미확인",
+  note:"주소 기준으로 핀 찍음. 지도상 이 주소에 다른 가게가 떠서 정보 미확인 — 가기 전에 확인 필요!",warn:true},
+ {id:"caramel",cat:"카페",name:"카라멜스테이션",status:"후보",when:"2일차 카페 후보",lat:37.5496131,lng:129.1075717,
+  addr:"동해시 발한로 219-11, 1층",tel:null,hours:"매일 11:00~18:00",
+  note:"콘커피(옥수수커피) 시그니처 + 지하 포토존. 묵호역 바로 근처라 기차 타기 전 마지막 코스로 딱!"},
+];
+
+/* ---------- render timeline ---------- */
+const TAPES=["","lav","sky","mint","butter","dot"];
+function renderTL(data,el){
+  el.innerHTML=data.map((it,i)=>{
+    const meta=CAT[it.cat];
+    const clickable=it.spot?"clickable":"";
+    const dataspot=it.spot?`data-spot="${it.spot}"`:"";
+    const stamp=it.status?`<span class="stamp ${stampClass(it.status)}">${stampText(it.status)}</span>`:"";
+    const hint=it.spot?`<span class="maphint">지도에서 보기 →</span>`:"";
+    const tape=TAPES[i%TAPES.length];
+    return `<div class="entry">
+      <div class="time">${it.time}</div>
+      <div class="note-card ${clickable}" ${dataspot}>
+        <span class="tape ${tape}"></span>
+        <div class="row1">
+          <span class="sticker-cat" style="--sc:${meta.hex}">${it.cat}</span>
+          <span class="what">${it.title}</span>
+          <span class="where">@ ${it.place}</span>
+          ${stamp}
+        </div>
+        <div class="memo ${it.warn?'warn':''}">${it.note}</div>
+        ${hint}
+      </div>
+    </div>`;
+  }).join("");
+}
+renderTL(DAY1,document.getElementById("tl1"));
+renderTL(DAY2,document.getElementById("tl2"));
+
+/* ---------- render place cards ---------- */
+const ORDER=["숙소","식당","카페","장보기","술집","놀거리","이동"];
+function renderPlaces(){
+  const wrap=document.getElementById("placewrap");
+  wrap.innerHTML=ORDER.map(cat=>{
+    const list=SPOTS.filter(s=>s.cat===cat);
+    if(!list.length) return "";
+    const meta=CAT[cat];
+    const cards=list.map((s,i)=>{
+      const tel=s.tel?`<div class="meta"><span class="ic">☎</span><span>${s.tel}</span></div>`:"";
+      const tape=TAPES[(i+1)%TAPES.length];
+      return `<div class="pcard" data-spot="${s.id}">
+        <span class="tape ${tape}"></span>
+        <div class="ph">
+          <div><div class="pn">${s.name}</div><div class="when">${s.when}</div></div>
+          <span class="stamp ${stampClass(s.status)}">${stampText(s.status)}</span>
+        </div>
+        <div class="meta"><span class="ic">📍</span><span>${s.addr}</span></div>
+        ${tel}
+        <div class="meta"><span class="ic">🕐</span><span>${s.hours}</span></div>
+        <div class="pnote ${s.warn?'warn':''}">${s.note}</div>
+      </div>`;
+    }).join("");
+    return `<div class="catblock">
+      <div class="catbar"><span class="label" style="background:${meta.hex}66">${cat}</span>
+        <span class="cnt">${list.length}곳</span></div>
+      <div class="grid-p">${cards}</div>
+    </div>`;
+  }).join("");
+}
+renderPlaces();
+
+/* ---------- map ---------- */
+const map=L.map('map',{scrollWheelZoom:false});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+  attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:19}).addTo(map);
+map.on('click',()=>map.scrollWheelZoom.enable());
+
+const markers={};
+SPOTS.forEach(s=>{
+  const meta=CAT[s.cat];
+  const icon=L.divIcon({className:'',html:
+    `<div style="width:24px;height:24px;border-radius:50%;background:${meta.hex};
+      border:2.5px solid #3B3630;box-shadow:2px 2px 0 rgba(59,54,48,.3);
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:bold;color:#3B3630"></div>`,
+    iconSize:[24,24],iconAnchor:[12,12],popupAnchor:[0,-14]});
+  const m=L.marker([s.lat,s.lng],{icon}).addTo(map);
+  const tel=s.tel?`<br>☎ ${s.tel}`:"";
+  m.bindPopup(`<span class="pop-cat" style="background:${meta.hex}">${s.cat} · ${stampText(s.status)}</span>
+    <div class="pop-name">${s.name}</div>
+    <div class="pop-note">${s.note}</div>
+    <div class="pop-meta">📍 ${s.addr}<br>🕐 ${s.hours}${tel}</div>`);
+  m.spotCat=s.cat;
+  markers[s.id]=m;
+});
+const group=L.featureGroup(Object.values(markers));
+map.fitBounds(group.getBounds().pad(0.15));
+
+function focusSpot(id){
+  const m=markers[id]; if(!m) return;
+  document.getElementById('map').scrollIntoView({behavior:'smooth',block:'center'});
+  setTimeout(()=>{map.setView(m.getLatLng(),16,{animate:true});m.openPopup();},420);
+}
+document.querySelectorAll('[data-spot]').forEach(el=>{
+  el.addEventListener('click',()=>focusSpot(el.dataset.spot));
+});
+
+/* filters */
+const cats=["all",...ORDER.filter(c=>SPOTS.some(s=>s.cat===c))];
+const fbar=document.getElementById('filters');
+fbar.innerHTML=cats.map(c=>{
+  if(c==="all") return `<button class="fbtn all active" data-cat="all">✦ 전체</button>`;
+  const meta=CAT[c];
+  return `<button class="fbtn" data-cat="${c}">
+    <span class="swatch" style="background:${meta.hex}"></span>${c}</button>`;
+}).join("");
+fbar.querySelectorAll('.fbtn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    fbar.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    const cat=b.dataset.cat;
+    const shown=[];
+    Object.values(markers).forEach(m=>{
+      const on=(cat==="all"||m.spotCat===cat);
+      if(on){m.addTo(map);shown.push(m);}else{map.removeLayer(m);}
+    });
+    if(shown.length){map.fitBounds(L.featureGroup(shown).getBounds().pad(0.18));}
+  });
+});
+</script>
+</body>
+</html>
