@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   :root{
     --paper:#FBF7EC; --grid:#E4DECC; --ink:#3B3630; --soft:#8A8272;
@@ -176,8 +175,9 @@
   .polaroid .tape.t2{left:auto;right:-24px;transform:rotate(40deg)}
   #map{height:500px;border-radius:2px;z-index:1;border:1px solid var(--grid)}
   .polaroid .capt{font-family:"Nanum Pen Script",cursive;font-size:24px;text-align:center;margin-top:10px}
-  .leaflet-popup-content-wrapper{border-radius:8px;font-family:"Gowun Dodum",sans-serif}
-  .leaflet-popup-content{margin:12px 14px}
+  .kpin{width:22px;height:22px;border-radius:50%;border:2.5px solid #3B3630;
+    box-shadow:2px 2px 0 rgba(59,54,48,.3);cursor:pointer}
+  .kpop{font-family:"Gowun Dodum",sans-serif;padding:10px 13px;max-width:220px;line-height:1.5}
   .pop-cat{font-family:"Gowun Dodum",sans-serif;font-size:11px;padding:1px 9px;border-radius:14px;
     border:1.5px solid var(--ink);display:inline-block}
   .pop-name{font-family:"Jua",sans-serif;font-size:18px;margin:5px 0 2px}
@@ -594,7 +594,7 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=8948c66db9cc30bd6c5904ad3f6b0a86&libraries=services&autoload=false"></script>
 <script>
 /* ---------- category meta (sticker colors) ---------- */
 const CAT = {
@@ -877,36 +877,42 @@ function deleteSpot(id){
 }
 renderPlaces();
 
-/* ---------- map ---------- */
-const map=L.map('map',{scrollWheelZoom:false});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
-  attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:19}).addTo(map);
-map.on('click',()=>map.scrollWheelZoom.enable());
-
-const markers={};
+/* ---------- map (Kakao Maps) ---------- */
+let map, infoWin;
+const markers={};   // id -> {overlay, latlng, cat, html}
+let curFilter="all";
 function hasCoord(s){return s.lat!=null&&s.lng!=null&&!isNaN(+s.lat)&&!isNaN(+s.lng);}
-function makeMarker(s){
+function popHtml(s){
   const meta=CAT[s.cat]||{hex:"#ddd"};
-  const icon=L.divIcon({className:'',html:
-    `<div style="width:24px;height:24px;border-radius:50%;background:${meta.hex};
-      border:2.5px solid #3B3630;box-shadow:2px 2px 0 rgba(59,54,48,.3);
-      display:flex;align-items:center;justify-content:center;
-      font-size:11px;font-weight:bold;color:#3B3630"></div>`,
-    iconSize:[24,24],iconAnchor:[12,12],popupAnchor:[0,-14]});
-  const m=L.marker([+s.lat,+s.lng],{icon}).addTo(map);
   const tel=s.tel?`<br>☎ ${esc(s.tel)}`:"";
   const addr=s.addr?`📍 ${esc(s.addr)}<br>`:"";
   const hours=s.hours?`🕐 ${esc(s.hours)}`:"";
-  m.bindPopup(`<span class="pop-cat" style="background:${meta.hex}">${s.cat} · ${stampText(s.status)}</span>
+  return `<div class="kpop"><span class="pop-cat" style="background:${meta.hex}">${esc(s.cat)} · ${stampText(s.status)}</span>
     <div class="pop-name">${esc(s.name)}</div>
-    <div class="pop-note">${esc(s.note)}</div>
-    <div class="pop-meta">${addr}${hours}${tel}</div>`);
-  m.spotCat=s.cat;
-  markers[s.id]=m;
+    ${s.note?`<div class="pop-note">${esc(s.note)}</div>`:""}
+    <div class="pop-meta">${addr}${hours}${tel}</div></div>`;
 }
-let curFilter="all";
+function makeMarker(s){
+  const meta=CAT[s.cat]||{hex:"#ddd"};
+  const pos=new kakao.maps.LatLng(+s.lat,+s.lng);
+  const el=document.createElement('div');
+  el.className='kpin';
+  el.style.background=meta.hex;
+  const overlay=new kakao.maps.CustomOverlay({position:pos,content:el,xAnchor:0.5,yAnchor:0.5,clickable:true});
+  const html=popHtml(s);
+  el.addEventListener('click',()=>openInfo(pos,html));
+  overlay.setMap(map);
+  markers[s.id]={overlay,latlng:pos,cat:s.cat,html};
+}
+function openInfo(pos,html){
+  infoWin.setContent(html);
+  infoWin.setPosition(pos);
+  infoWin.setMap(map);
+  map.panTo(pos);
+}
 function redrawMarkers(){
-  Object.values(markers).forEach(m=>map.removeLayer(m));
+  if(!map) return;
+  Object.values(markers).forEach(m=>m.overlay.setMap(null));
   for(const k in markers) delete markers[k];
   allSpots().filter(hasCoord).forEach(makeMarker);
   buildFilters();
@@ -916,15 +922,28 @@ function applyFilter(cat,fit){
   curFilter=cat;
   const shown=[];
   Object.values(markers).forEach(m=>{
-    const on=(cat==="all"||m.spotCat===cat);
-    if(on){m.addTo(map);shown.push(m);}else{map.removeLayer(m);}
+    const on=(cat==="all"||m.cat===cat);
+    m.overlay.setMap(on?map:null);
+    if(on) shown.push(m);
   });
-  if(fit&&shown.length){map.fitBounds(L.featureGroup(shown).getBounds().pad(0.18));}
+  if(fit&&shown.length&&map){
+    const b=new kakao.maps.LatLngBounds();
+    shown.forEach(m=>b.extend(m.latlng));
+    map.setBounds(b);
+  }
 }
 function focusSpot(id){
-  const m=markers[id]; if(!m) return;
+  const m=markers[id]; if(!m||!map) return;
   document.getElementById('map').scrollIntoView({behavior:'smooth',block:'center'});
-  setTimeout(()=>{map.setView(m.getLatLng(),16,{animate:true});m.openPopup();},420);
+  setTimeout(()=>{map.setLevel(3);map.panTo(m.latlng);openInfo(m.latlng,m.html);},420);
+}
+function initMap(){
+  map=new kakao.maps.Map(document.getElementById('map'),{
+    center:new kakao.maps.LatLng(37.5523,129.1145),level:5});
+  map.setZoomable(false);
+  kakao.maps.event.addListener(map,'click',()=>map.setZoomable(true));
+  infoWin=new kakao.maps.InfoWindow({removable:true});
+  redrawMarkers();
 }
 
 /* filters */
@@ -947,8 +966,9 @@ function buildFilters(){
     });
   });
 }
-redrawMarkers();
-renderAllTL();  /* 지도 markers 준비된 뒤 타임라인 클릭연결 재바인딩 */
+/* 지도는 kakao.maps.load 콜백(initMap)에서 초기화됨.
+   카드/타임라인은 지도와 독립이라 즉시 렌더 (클릭 시 지도 준비돼 있으면 이동). */
+renderAllTL();
 bindPlaceEvents();
 
 /* ---------- add place: modal + form ---------- */
@@ -983,26 +1003,27 @@ document.getElementById('cancelAdd').addEventListener('click',closeModal);
 overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.classList.contains('open'))closeModal();});
 
-/* 주소 → 좌표 (OpenStreetMap Nominatim, 무료) */
-document.getElementById('geoBtn').addEventListener('click',async()=>{
+/* 주소·장소명 → 좌표 (Kakao 주소검색 + 키워드검색 폴백) */
+document.getElementById('geoBtn').addEventListener('click',()=>{
   const el=addForm.elements;
   const addr=el.addr.value.trim();
-  if(!addr){geoMsg.textContent="먼저 주소를 입력해줘.";geoMsg.className="geomsg err";return;}
+  if(!addr){geoMsg.textContent="먼저 주소나 장소명을 입력해줘.";geoMsg.className="geomsg err";return;}
+  if(!(window.kakao&&kakao.maps&&kakao.maps.services)){
+    geoMsg.textContent="지도 로딩 중이야. 잠깐 뒤 다시 눌러줘.";geoMsg.className="geomsg err";return;}
   geoMsg.textContent="좌표 찾는 중...";geoMsg.className="geomsg";
-  try{
-    const url="https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(addr);
-    const r=await fetch(url,{headers:{'Accept-Language':'ko'}});
-    const j=await r.json();
-    if(j&&j.length){
-      el.lat.value=(+j[0].lat).toFixed(6);
-      el.lng.value=(+j[0].lon).toFixed(6);
-      geoMsg.textContent="좌표 찾음! 지도에 핀이 찍힐 거야.";geoMsg.className="geomsg ok";
-    }else{
-      geoMsg.textContent="못 찾음. 좌표를 직접 넣거나 비워둬도 돼(카드만 저장됨).";geoMsg.className="geomsg err";
-    }
-  }catch(err){
-    geoMsg.textContent="검색 실패. 좌표는 직접 넣거나 비워둬도 됨.";geoMsg.className="geomsg err";
-  }
+  const OK=kakao.maps.services.Status.OK;
+  const setLL=(x,y)=>{   // 카카오: x=경도(lng), y=위도(lat)
+    el.lng.value=(+x).toFixed(6);el.lat.value=(+y).toFixed(6);
+    geoMsg.textContent="좌표 찾음! 지도에 핀이 찍힐 거야.";geoMsg.className="geomsg ok";
+  };
+  const fail=()=>{geoMsg.textContent="못 찾음. 좌표를 직접 넣거나 비워둬도 돼(카드만 저장됨).";geoMsg.className="geomsg err";};
+  new kakao.maps.services.Geocoder().addressSearch(addr,(res,status)=>{
+    if(status===OK&&res.length){setLL(res[0].x,res[0].y);return;}
+    /* 주소로 못 찾으면 상호(키워드) 검색 */
+    new kakao.maps.services.Places().keywordSearch(addr,(data,st)=>{
+      if(st===OK&&data.length){setLL(data[0].x,data[0].y);}else{fail();}
+    });
+  });
 });
 
 addForm.addEventListener('submit',e=>{
@@ -1164,6 +1185,10 @@ function addTodo(){
 document.getElementById("todoAddBtn").addEventListener("click",addTodo);
 document.getElementById("todoInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addTodo();}});
 renderTodos();
+
+/* ---------- 지도 초기화 (모든 정의 완료 후, SDK 로드되면 실행) ---------- */
+if(window.kakao&&window.kakao.maps&&kakao.maps.load){kakao.maps.load(initMap);}
+else{console.warn('Kakao Maps SDK를 불러오지 못함 — 지도만 비활성, 나머지는 정상 동작');}
 </script>
 </body>
 </html>
