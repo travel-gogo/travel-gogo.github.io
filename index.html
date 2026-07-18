@@ -447,17 +447,6 @@
     <div id="placewrap"></div>
   </section>
 
-  <!-- ===== DATA BACKUP ===== -->
-  <div class="datatools">
-    <button id="autoBackupBtn">🔗 자동 백업 연결</button>
-    <button id="exportBtn">📥 지금 백업 저장</button>
-    <label class="impbtn">📤 백업 불러오기<input type="file" id="importFile" accept="application/json,.json" hidden></label>
-    <span id="backupStatus" class="bstat"></span>
-    <div class="hint">
-      <b>자동 백업 연결</b>: 백업 파일을 한 번 지정하면, 이후 수정할 때마다 그 파일에 자동 저장돼 (크롬·엣지). ·
-      추가·수정한 내용은 늘 이 브라우저에 자동 저장되고 있음. 이 백업 파일을 나(클로드)에게 주면 사이트 기본값으로 영구 반영해줄 수 있음
-    </div>
-  </div>
 
   <!-- ===== CHECKLIST ===== -->
   <section id="todo">
@@ -620,7 +609,25 @@
 </div>
 
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=8948c66db9cc30bd6c5904ad3f6b0a86&libraries=services&autoload=false"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script>
+/* ---------- Firebase 초기화 (여행 멤버 실시간 공유) ---------- */
+const firebaseConfig={
+  apiKey:"AIzaSyBBp6C2OtPV2oD4blGPKVbCcUGGpIHhV6E",
+  authDomain:"project-plan-storage.firebaseapp.com",
+  databaseURL:"https://project-plan-storage-default-rtdb.firebaseio.com",
+  projectId:"project-plan-storage",
+  storageBucket:"project-plan-storage.firebasestorage.app",
+  messagingSenderId:"430650882970",
+  appId:"1:430650882970:web:48ee81f83ca04b41055823"
+};
+let db=null;
+try{ firebase.initializeApp(firebaseConfig); db=firebase.database(); }
+catch(e){ console.warn("Firebase 초기화 실패 — 편집 동기화 비활성:",e); }
+/* Firebase 배열은 객체로 올 수 있어 → 항상 배열로 변환 */
+function toArr(v){return Array.isArray(v)?v:(v?Object.values(v):[]);}
+
 /* ---------- category meta (sticker colors) ---------- */
 const CAT = {
   이동:{hex:"#BFC9D9",pin:"#6D7F99"},
@@ -700,14 +707,11 @@ const SPOTS=[
   note:"콘커피(옥수수커피) 시그니처 + 지하 포토존. 묵호역 바로 근처라 기차 타기 전 마지막 코스로 딱!"},
 ];
 
-/* ---------- custom places + overrides (localStorage) ---------- */
-const LS_KEY="mukho_custom_spots";
-const LS_OVR="mukho_spot_overrides";
-function loadLS(key,fb){try{const r=localStorage.getItem(key);return r?JSON.parse(r):fb;}catch(e){return fb;}}
-let CUSTOM=loadLS(LS_KEY,[]);
-let OVERRIDES=loadLS(LS_OVR,{});   /* {고정장소id: {수정된 필드들}} */
-function saveCustom(){localStorage.setItem(LS_KEY,JSON.stringify(CUSTOM));scheduleBackup();}
-function saveOverrides(){localStorage.setItem(LS_OVR,JSON.stringify(OVERRIDES));scheduleBackup();}
+/* ---------- custom places + overrides (Firebase 실시간) ---------- */
+let CUSTOM=[];
+let OVERRIDES={};   /* {고정장소id: {수정된 필드들}} */
+function saveCustom(){if(db)db.ref('custom_spots').set(CUSTOM.length?CUSTOM:null);}
+function saveOverrides(){if(db)db.ref('spot_overrides').set(Object.keys(OVERRIDES).length?OVERRIDES:null);}
 /* SPOTS(고정, 오버라이드 적용) + 사용자 추가분 병합 */
 function allSpots(){
   return [
@@ -722,14 +726,14 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 /* 기본 타임라인 항목에 안정적 id 부여 */
 DAY1.forEach((it,i)=>{it._id="d1_"+i;it._day="DAY1";});
 DAY2.forEach((it,i)=>{it._id="d2_"+i;it._day="DAY2";});
-let TL_OVR=loadLS("mukho_tl_overrides",{});   /* {기본항목id: {수정필드}} */
-let TL_CUSTOM=loadLS("mukho_tl_custom",[]);    /* 사용자 추가 일정 */
-let TL_HIDDEN=loadLS("mukho_tl_hidden",[]);    /* 숨긴 기본 일정 id (되살리기 가능) */
+let TL_OVR={};      /* {기본항목id: {수정필드}} */
+let TL_CUSTOM=[];   /* 사용자 추가 일정 */
+let TL_HIDDEN=[];   /* 숨긴 기본 일정 id (되살리기 가능) */
 function saveTL(){
-  localStorage.setItem("mukho_tl_overrides",JSON.stringify(TL_OVR));
-  localStorage.setItem("mukho_tl_custom",JSON.stringify(TL_CUSTOM));
-  localStorage.setItem("mukho_tl_hidden",JSON.stringify(TL_HIDDEN));
-  scheduleBackup();
+  if(!db) return;
+  db.ref('tl_overrides').set(Object.keys(TL_OVR).length?TL_OVR:null);
+  db.ref('tl_custom').set(TL_CUSTOM.length?TL_CUSTOM:null);
+  db.ref('tl_hidden').set(TL_HIDDEN.length?TL_HIDDEN:null);
 }
 function tlKey(t){const m=String(t||"").match(/(\d{1,2}):(\d{2})/);return m?(+m[1])*60+(+m[2]):9999;}
 function dayItems(dayKey){
@@ -1188,13 +1192,12 @@ const DEFAULT_TODOS=[
  {id:"t6",html:"<b>어달해변포차</b> 8/16 운영하는지 + 날씨 (노지라서 비 오면 큰일)"},
  {id:"t7",html:"<b>문어닭강정 예약 전화</b> — 주말엔 금방 품절된대!"},
 ];
-function loadJSON(key,fallback){try{const r=localStorage.getItem(key);return r?JSON.parse(r):fallback;}catch(e){return fallback;}}
-let todoChecked=loadJSON("mukho_todo_checked",{});
-let todoItems=loadJSON("mukho_todo_items",[]);
+let todoChecked={};
+let todoItems=[];
 function saveTodos(){
-  localStorage.setItem("mukho_todo_checked",JSON.stringify(todoChecked));
-  localStorage.setItem("mukho_todo_items",JSON.stringify(todoItems));
-  scheduleBackup();
+  if(!db) return;
+  db.ref('todo_checked').set(Object.keys(todoChecked).length?todoChecked:null);
+  db.ref('todo_items').set(todoItems.length?todoItems:null);
 }
 function renderTodos(){
   const ul=document.getElementById("todolist");
@@ -1241,80 +1244,16 @@ document.getElementById("todoAddBtn").addEventListener("click",addTodo);
 document.getElementById("todoInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addTodo();}});
 renderTodos();
 
-/* ---------- 데이터 백업/복원 (export / import) ---------- */
-const DATA_KEYS=["mukho_custom_spots","mukho_spot_overrides","mukho_tl_overrides","mukho_tl_custom","mukho_tl_hidden","mukho_todo_checked","mukho_todo_items"];
-function exportData(){
-  const data={_meta:{app:"묵호항 다이어리",exported:new Date().toISOString()}};
-  DATA_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null){try{data[k]=JSON.parse(v);}catch(e){}}});
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download="묵호항_다이어리_백업.json";
-  document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
+/* ---------- Firebase 실시간 구독 (여행 멤버 누구나 편집 → 모두 반영) ---------- */
+if(db){
+  db.ref('custom_spots').on('value',s=>{CUSTOM=toArr(s.val());renderPlaces();redrawMarkers();});
+  db.ref('spot_overrides').on('value',s=>{OVERRIDES=s.val()||{};renderPlaces();redrawMarkers();});
+  db.ref('tl_overrides').on('value',s=>{TL_OVR=s.val()||{};renderAllTL();});
+  db.ref('tl_custom').on('value',s=>{TL_CUSTOM=toArr(s.val());renderAllTL();});
+  db.ref('tl_hidden').on('value',s=>{TL_HIDDEN=toArr(s.val());renderAllTL();});
+  db.ref('todo_checked').on('value',s=>{todoChecked=s.val()||{};renderTodos();});
+  db.ref('todo_items').on('value',s=>{todoItems=toArr(s.val());renderTodos();});
 }
-function importData(file){
-  const reader=new FileReader();
-  reader.onload=e=>{
-    let data;
-    try{data=JSON.parse(e.target.result);}
-    catch(err){alert("파일을 읽지 못했어. JSON 백업 파일이 맞는지 확인해줘.");return;}
-    let n=0;
-    DATA_KEYS.forEach(k=>{if(data[k]!=null){localStorage.setItem(k,JSON.stringify(data[k]));n++;}});
-    if(n===0){alert("이 파일엔 불러올 데이터가 없어.");return;}
-    alert("백업을 불러왔어! 새로고침할게.");
-    location.reload();
-  };
-  reader.readAsText(file);
-}
-document.getElementById('exportBtn').addEventListener('click',exportData);
-document.getElementById('importFile').addEventListener('change',e=>{if(e.target.files[0])importData(e.target.files[0]);});
-
-/* ---------- 자동 백업 (File System Access API, 크롬·엣지) ---------- */
-let backupHandle=null;
-let backupTimer=null;
-function collectData(){
-  const data={_meta:{app:"묵호항 다이어리",exported:new Date().toISOString()}};
-  DATA_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null){try{data[k]=JSON.parse(v);}catch(e){}}});
-  return data;
-}
-function updateBackupStatus(saving){
-  const el=document.getElementById('backupStatus');
-  if(!el) return;
-  if(backupHandle){el.textContent=saving?"● 자동 백업 저장 중...":"● 자동 백업 켜짐";el.className="bstat on";}
-  else{el.textContent="";el.className="bstat";}
-}
-async function writeBackup(){
-  if(!backupHandle) return;
-  try{
-    updateBackupStatus(true);
-    const w=await backupHandle.createWritable();
-    await w.write(JSON.stringify(collectData(),null,2));
-    await w.close();
-    updateBackupStatus(false);
-  }catch(e){/* 권한 상실 등 → 조용히 무시 */ updateBackupStatus(false);}
-}
-/* 편집 시 호출됨 (디바운스) */
-function scheduleBackup(){
-  if(!backupHandle) return;
-  clearTimeout(backupTimer);
-  backupTimer=setTimeout(writeBackup,600);
-}
-async function connectBackup(){
-  if(!window.showSaveFilePicker){
-    alert("이 브라우저는 자동 백업 파일 연결을 지원하지 않아 (크롬·엣지에서 가능해).\n대신 '지금 백업 저장' 버튼으로 수동 백업을 써줘.");
-    return;
-  }
-  try{
-    backupHandle=await window.showSaveFilePicker({
-      suggestedName:"묵호항_다이어리_백업.json",
-      types:[{description:"JSON 백업",accept:{"application/json":[".json"]}}],
-    });
-    await writeBackup();   // 연결 즉시 1회 저장
-    alert("자동 백업 연결 완료! 이제 수정할 때마다 이 파일에 자동으로 저장돼.");
-  }catch(e){/* 사용자가 취소함 */}
-}
-document.getElementById('autoBackupBtn').addEventListener('click',connectBackup);
 
 /* ---------- 지도 초기화 (모든 정의 완료 후, SDK 로드되면 실행) ---------- */
 if(window.kakao&&window.kakao.maps&&kakao.maps.load){kakao.maps.load(initMap);}
