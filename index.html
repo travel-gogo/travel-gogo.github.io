@@ -463,7 +463,7 @@
     <span class="tape lav"></span>
     <button class="xbtn" id="closeAdd" aria-label="닫기">×</button>
     <h3 id="modalTitle">✍ 새 장소 추가</h3>
-    <div class="mcap">장소 수첩이랑 지도에 같이 추가됨. 좌표를 넣으면 지도에도 핀이 찍혀!</div>
+    <div class="mcap">장소 수첩이랑 지도에 같이 추가됨. 주소만 넣으면 지도에 자동으로 핀이 찍혀!</div>
     <form id="addForm">
       <div class="field">
         <label>장소명 <span class="req">*</span></label>
@@ -514,7 +514,7 @@
         <textarea name="note" placeholder="여기 왜 가고 싶은지, 주의할 점 등"></textarea>
       </div>
       <div class="field">
-        <label>지도 좌표 (선택) — 넣으면 지도에 핀 표시</label>
+        <label>지도 좌표 (선택) — 비워두면 위 '위치(주소)'로 자동 표시. 핀이 틀어질 때만 직접 조정</label>
         <div class="geo">
           <div class="field"><input type="text" name="lat" placeholder="위도 lat"></div>
           <div class="field"><input type="text" name="lng" placeholder="경도 lng"></div>
@@ -902,7 +902,7 @@ function makeMarker(s){
   const html=popHtml(s);
   el.addEventListener('click',()=>openInfo(pos,html));
   overlay.setMap(map);
-  markers[s.id]={overlay,latlng:pos,cat:s.cat,html};
+  markers[s.id]={overlay,latlng:pos,cat:s.cat,html,el};
 }
 function openInfo(pos,html){
   infoWin.setContent(html);
@@ -923,9 +923,15 @@ function applyFilter(cat,fit){
   const shown=[];
   Object.values(markers).forEach(m=>{
     const on=(cat==="all"||m.cat===cat);
-    m.overlay.setMap(on?map:null);
+    /* 마커는 항상 표시하되, 선택 카테고리는 진하게 / 나머지는 흐리게 */
+    m.overlay.setMap(map);
+    if(m.el){
+      m.el.style.opacity=on?"1":"0.28";
+      m.el.style.zIndex=on?"2":"1";
+    }
     if(on) shown.push(m);
   });
+  /* 필터 선택 시 해당 카테고리 쪽으로 지도 이동(다른 마커도 계속 보임) */
   if(fit&&shown.length&&map){
     const b=new kakao.maps.LatLngBounds();
     shown.forEach(m=>b.extend(m.latlng));
@@ -940,6 +946,9 @@ function focusSpot(id){
 function initMap(){
   map=new kakao.maps.Map(document.getElementById('map'),{
     center:new kakao.maps.LatLng(37.5523,129.1145),level:5});
+  /* 축척(줌) 컨트롤 + 지도타입 컨트롤 */
+  map.addControl(new kakao.maps.ZoomControl(),kakao.maps.ControlPosition.RIGHT);
+  /* 페이지 스크롤 방해 방지: 기본은 휠줌 off, 지도 클릭하면 on (줌 버튼은 항상 동작) */
   map.setZoomable(false);
   kakao.maps.event.addListener(map,'click',()=>map.setZoomable(true));
   infoWin=new kakao.maps.InfoWindow({removable:true});
@@ -1003,35 +1012,48 @@ document.getElementById('cancelAdd').addEventListener('click',closeModal);
 overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.classList.contains('open'))closeModal();});
 
-/* 주소·장소명 → 좌표 (Kakao 주소검색 + 키워드검색 폴백) */
-document.getElementById('geoBtn').addEventListener('click',()=>{
+/* 주소·장소명 → 좌표 (Kakao 주소검색 + 키워드검색 폴백). 결과 {lat,lng} 또는 null */
+function geocode(query){
+  return new Promise(resolve=>{
+    if(!query||!(window.kakao&&kakao.maps&&kakao.maps.services)){resolve(null);return;}
+    const OK=kakao.maps.services.Status.OK;   // 카카오: x=경도(lng), y=위도(lat)
+    new kakao.maps.services.Geocoder().addressSearch(query,(res,st)=>{
+      if(st===OK&&res&&res.length){resolve({lat:+res[0].y,lng:+res[0].x});return;}
+      new kakao.maps.services.Places().keywordSearch(query,(data,st2)=>{
+        if(st2===OK&&data&&data.length){resolve({lat:+data[0].y,lng:+data[0].x});}
+        else resolve(null);
+      });
+    });
+  });
+}
+document.getElementById('geoBtn').addEventListener('click',async()=>{
   const el=addForm.elements;
   const addr=el.addr.value.trim();
   if(!addr){geoMsg.textContent="먼저 주소나 장소명을 입력해줘.";geoMsg.className="geomsg err";return;}
   if(!(window.kakao&&kakao.maps&&kakao.maps.services)){
     geoMsg.textContent="지도 로딩 중이야. 잠깐 뒤 다시 눌러줘.";geoMsg.className="geomsg err";return;}
   geoMsg.textContent="좌표 찾는 중...";geoMsg.className="geomsg";
-  const OK=kakao.maps.services.Status.OK;
-  const setLL=(x,y)=>{   // 카카오: x=경도(lng), y=위도(lat)
-    el.lng.value=(+x).toFixed(6);el.lat.value=(+y).toFixed(6);
-    geoMsg.textContent="좌표 찾음! 지도에 핀이 찍힐 거야.";geoMsg.className="geomsg ok";
-  };
-  const fail=()=>{geoMsg.textContent="못 찾음. 좌표를 직접 넣거나 비워둬도 돼(카드만 저장됨).";geoMsg.className="geomsg err";};
-  new kakao.maps.services.Geocoder().addressSearch(addr,(res,status)=>{
-    if(status===OK&&res.length){setLL(res[0].x,res[0].y);return;}
-    /* 주소로 못 찾으면 상호(키워드) 검색 */
-    new kakao.maps.services.Places().keywordSearch(addr,(data,st)=>{
-      if(st===OK&&data.length){setLL(data[0].x,data[0].y);}else{fail();}
-    });
-  });
+  const g=await geocode(addr);
+  if(g){el.lng.value=g.lng.toFixed(6);el.lat.value=g.lat.toFixed(6);
+    geoMsg.textContent="좌표 찾음! 지도에 핀이 찍힐 거야.";geoMsg.className="geomsg ok";}
+  else{geoMsg.textContent="못 찾음. 좌표를 직접 넣거나 비워둬도 돼(카드만 저장됨).";geoMsg.className="geomsg err";}
 });
 
-addForm.addEventListener('submit',e=>{
+addForm.addEventListener('submit',async e=>{
   e.preventDefault();
   const f=addForm.elements;
   const name=f.name.value.trim();
   if(!name){f.name.focus();return;}
   const latRaw=f.lat.value.trim(),lngRaw=f.lng.value.trim();
+  let lat=latRaw!==""&&!isNaN(+latRaw)?+latRaw:null;
+  let lng=lngRaw!==""&&!isNaN(+lngRaw)?+lngRaw:null;
+  const addr=f.addr.value.trim();
+  /* 좌표를 직접 안 넣었으면 → 주소로 자동으로 좌표 찾기 (핀 자동 표시) */
+  if((lat==null||lng==null)&&addr){
+    geoMsg.textContent="주소로 위치 찾는 중...";geoMsg.className="geomsg";
+    const g=await geocode(addr);
+    if(g){lat=g.lat;lng=g.lng;}
+  }
   const spot={
     id:"custom_"+Date.now(),
     custom:true,
@@ -1039,12 +1061,12 @@ addForm.addEventListener('submit',e=>{
     name,
     status:f.status.value,
     when:f.when.value.trim()||"내가 추가한 곳",
-    addr:f.addr.value.trim(),
+    addr,
     tel:f.tel.value.trim()||null,
     hours:f.hours.value.trim(),
     note:f.note.value.trim(),
-    lat:latRaw!==""&&!isNaN(+latRaw)?+latRaw:null,
-    lng:lngRaw!==""&&!isNaN(+lngRaw)?+lngRaw:null,
+    lat,
+    lng,
   };
   if(editingId){
     const idx=CUSTOM.findIndex(x=>x.id===editingId);
