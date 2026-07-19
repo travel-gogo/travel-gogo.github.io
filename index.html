@@ -404,8 +404,6 @@
     <table>
       <tr><td class="k">날짜</td><td>8/16(일) – 8/17(월) · 1박 2일</td></tr>
       <tr><td class="k">인원</td><td>7명 (전원 음주 예정 ¯\_(ツ)_/¯)</td></tr>
-      <tr><td class="k">가는 편</td><td>청량리 09:37 → 묵호 11:43 (예매 완료!)</td></tr>
-      <tr><td class="k">오는 편</td><td>묵호 16:24 → 강릉 → 청량리 · KTX (예매하기!)</td></tr>
     </table>
   </div>
 </header>
@@ -416,7 +414,6 @@
   <section id="timetable">
     <div class="stitle" style="--hl:var(--butter)">하루의 계획표</div>
     <svg class="squig" height="10" viewBox="0 0 120 10"><path d="M2 5 Q10 1 18 5 T34 5 T50 5 T66 5 T82 5 T98 5 T114 5" stroke="#E8A0B4" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
-    <div class="scap">도착 11:43 기준 · 체크인 15:00 / 체크아웃 11:00은 아직 가정값!</div>
 
     <div class="daytab"><span class="chip">DAY 1</span> 8월 16일 일요일 ☀️바다!</div>
     <div id="tl1"></div>
@@ -436,7 +433,7 @@
     <div class="polaroid">
       <span class="tape"></span><span class="tape lav t2"></span>
       <div id="map"></div>
-      <div class="capt">묵호항 반경 1.5km에 다 있음 ⛵</div>
+      <div class="capt">다 같이 즐거운 여행 되자 ⛵</div>
     </div>
   </section>
 
@@ -760,7 +757,7 @@ function renderTL(dayKey,el){
           ${it.place?`<span class="where">@ ${esc(it.place)}</span>`:""}
           ${stamp}
         </div>
-        ${it.note?`<div class="memo ${it.warn?'warn':''}">${esc(it.note)}</div>`:""}
+        ${it.note?`<div class="memo">${esc(it.note)}</div>`:""}
         ${hint}
       </div>
     </div>`;
@@ -809,7 +806,7 @@ function renderPlaces(){
       const badge="";
       const addr=s.addr?`<div class="meta"><span class="ic">📍</span><span>${esc(s.addr)}</span></div>`:"";
       const hours=s.hours?`<div class="meta"><span class="ic">🕐</span><span>${esc(s.hours)}</span></div>`:"";
-      const note=s.note?`<div class="pnote ${s.warn?'warn':''}">${esc(s.note)}</div>`:"";
+      const note=s.note?`<div class="pnote">${esc(s.note)}</div>`:"";
       return `<div class="pcard" data-spot="${s.id}">
         ${actions}
         <span class="tape ${tape}"></span>
