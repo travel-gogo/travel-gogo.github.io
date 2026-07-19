@@ -273,7 +273,7 @@
   .memo-pad li .tedit:hover{background:var(--pen-blue);color:#fff;transform:scale(1.1)}
   .todo-add{display:flex;gap:8px;margin-top:14px}
   .todo-add input{
-    flex:1;font-family:"Gowun Dodum",sans-serif;font-size:13.5px;color:var(--ink);
+    flex:1;min-width:0;font-family:"Gowun Dodum",sans-serif;font-size:13.5px;color:var(--ink);
     padding:9px 13px;border:1.5px solid rgba(255,255,255,.9);border-radius:7px;
     background:rgba(255,255,255,.85);
   }
@@ -383,6 +383,12 @@
     #map{height:420px}
     .ticket td{padding:2px 8px;font-size:12.5px}
     .field.row2{grid-template-columns:1fr}
+    /* 좁은 화면: 체크리스트 박스가 넘치지 않게 */
+    .memo-pad{padding:22px 14px 18px}
+    .memo-pad li{padding:9px 10px;gap:8px}
+    .todo-add{gap:6px}
+    .todo-add input{padding:8px 10px;font-size:13px}
+    .todo-add button{padding:0 13px;font-size:13.5px}
   }
   @media(prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
 </style>
