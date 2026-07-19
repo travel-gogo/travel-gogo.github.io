@@ -264,6 +264,13 @@
     opacity:.85;transition:.12s;margin-top:1px;
   }
   .memo-pad li .tdel:hover{background:var(--pen-red);color:#fff;transform:scale(1.1)}
+  .memo-pad li .tedit{
+    flex-shrink:0;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--pen-blue);
+    background:#fff;color:var(--pen-blue);cursor:pointer;font-family:"Gowun Dodum",sans-serif;
+    font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;
+    opacity:.85;transition:.12s;margin-top:1px;
+  }
+  .memo-pad li .tedit:hover{background:var(--pen-blue);color:#fff;transform:scale(1.1)}
   .todo-add{display:flex;gap:8px;margin-top:14px}
   .todo-add input{
     flex:1;font-family:"Gowun Dodum",sans-serif;font-size:13.5px;color:var(--ink);
@@ -390,13 +397,13 @@
 
   <div class="banner">묵 호 항 · 한 바 퀴</div>
   <h1>바다로 가는 날 <span class="wave">〜</span></h1>
-  <div class="subtitle">2026.8.16 – 8.17 ⋆ 여섯 명이서 일출로를 걷는 1박 2일</div>
+  <div class="subtitle">2026.8.16 – 8.17 ⋆ 일곱 명이서 일출로를 걷는 1박 2일</div>
 
   <div class="ticket">
     <span class="tape sky"></span>
     <table>
       <tr><td class="k">날짜</td><td>8/16(일) – 8/17(월) · 1박 2일</td></tr>
-      <tr><td class="k">인원</td><td>6명 (전원 음주 예정 ¯\_(ツ)_/¯)</td></tr>
+      <tr><td class="k">인원</td><td>7명 (전원 음주 예정 ¯\_(ツ)_/¯)</td></tr>
       <tr><td class="k">가는 편</td><td>청량리 09:37 → 묵호 11:43 (예매 완료!)</td></tr>
       <tr><td class="k">오는 편</td><td>묵호 16:24 → 강릉 → 청량리 · KTX (예매하기!)</td></tr>
     </table>
@@ -414,12 +421,10 @@
     <div class="daytab"><span class="chip">DAY 1</span> 8월 16일 일요일 ☀️바다!</div>
     <div id="tl1"></div>
     <button class="tl-addbtn" data-addday="DAY1">＋ DAY 1 일정 추가</button>
-    <button class="tl-restore" data-restoreday="DAY1" style="display:none"></button>
 
     <div class="daytab" style="margin-top:34px"><span class="chip" style="background:var(--mint)">DAY 2</span> 8월 17일 월요일 ☕해장...</div>
     <div id="tl2"></div>
     <button class="tl-addbtn" data-addday="DAY2">＋ DAY 2 일정 추가</button>
-    <button class="tl-restore" data-restoreday="DAY2" style="display:none"></button>
   </section>
 
   <!-- ===== MAP ===== -->
@@ -467,7 +472,7 @@
 </div>
 
 <footer>
-  ⋆ 묵호항 1박 2일 · 여섯 명 · 2026.08.16 – 17 ⋆<br>
+  ⋆ 묵호항 1박 2일 · 일곱 명 · 2026.08.16 – 17 ⋆<br>
   맛있는 거 많이 먹고 오자 <span class="heart">♥</span>
 </footer>
 
@@ -707,42 +712,29 @@ const SPOTS=[
   note:"콘커피(옥수수커피) 시그니처 + 지하 포토존. 묵호역 바로 근처라 기차 타기 전 마지막 코스로 딱!"},
 ];
 
-/* ---------- custom places + overrides (Firebase 실시간) ---------- */
-let CUSTOM=[];
-let OVERRIDES={};   /* {고정장소id: {수정된 필드들}} */
-function saveCustom(){if(db)db.ref('custom_spots').set(CUSTOM.length?CUSTOM:null);}
-function saveOverrides(){if(db)db.ref('spot_overrides').set(Object.keys(OVERRIDES).length?OVERRIDES:null);}
-/* SPOTS(고정, 오버라이드 적용) + 사용자 추가분 병합 */
-function allSpots(){
-  return [
-    ...SPOTS.map(s=>OVERRIDES[s.id]?{...s,...OVERRIDES[s.id]}:s),
-    ...CUSTOM,
-  ];
-}
+/* ---------- 데이터 상태 (Firebase 단일 소스 · 모든 항목 동등하게 취급) ----------
+   위 SPOTS/DAY1/DAY2와 아래 SEED_TODOS는 "최초 1회 시드"로만 쓰이고,
+   그 이후로는 Firebase 데이터가 유일한 소스. 모든 항목이 수정·삭제 가능. */
+const SEED_SPOTS=SPOTS;
+let SPOTS_DATA=[];   /* 장소 전체 */
+let TIMELINE=[];     /* 일정 전체 (day 필드 포함) */
+let TODOS=[];        /* 체크리스트 전체 */
+function saveSpots(){if(db)db.ref('spots').set(SPOTS_DATA.length?SPOTS_DATA:null);}
+function saveTimeline(){if(db)db.ref('timeline').set(TIMELINE.length?TIMELINE:null);}
+function saveTodos(){if(db)db.ref('todos').set(TODOS.length?TODOS:null);}
+function allSpots(){return SPOTS_DATA;}
 
 /* ---------- render timeline (editable) ---------- */
 const TAPES=["","lav","sky","mint","butter","dot"];
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-/* 기본 타임라인 항목에 안정적 id 부여 */
-DAY1.forEach((it,i)=>{it._id="d1_"+i;it._day="DAY1";});
-DAY2.forEach((it,i)=>{it._id="d2_"+i;it._day="DAY2";});
-let TL_OVR={};      /* {기본항목id: {수정필드}} */
-let TL_CUSTOM=[];   /* 사용자 추가 일정 */
-let TL_HIDDEN=[];   /* 숨긴 기본 일정 id (되살리기 가능) */
-function saveTL(){
-  if(!db) return;
-  db.ref('tl_overrides').set(Object.keys(TL_OVR).length?TL_OVR:null);
-  db.ref('tl_custom').set(TL_CUSTOM.length?TL_CUSTOM:null);
-  db.ref('tl_hidden').set(TL_HIDDEN.length?TL_HIDDEN:null);
-}
+/* 기본 일정 시드 (Firebase가 비어있을 때 최초 1회만 사용) */
+const SEED_TIMELINE=[
+  ...DAY1.map((it,i)=>({...it,id:"d1_"+i,day:"DAY1"})),
+  ...DAY2.map((it,i)=>({...it,id:"d2_"+i,day:"DAY2"})),
+];
 function tlKey(t){const m=String(t||"").match(/(\d{1,2}):(\d{2})/);return m?(+m[1])*60+(+m[2]):9999;}
 function dayItems(dayKey){
-  const hidden=new Set(TL_HIDDEN);
-  const base=(dayKey==="DAY1"?DAY1:DAY2)
-    .filter(it=>!hidden.has(it._id))
-    .map(it=>TL_OVR[it._id]?{...it,...TL_OVR[it._id]}:it);
-  const cust=TL_CUSTOM.filter(x=>x._day===dayKey);
-  return [...base,...cust].sort((a,b)=>tlKey(a.time)-tlKey(b.time));
+  return TIMELINE.filter(x=>x&&x.day===dayKey).sort((a,b)=>tlKey(a.time)-tlKey(b.time));
 }
 function renderTL(dayKey,el){
   const data=dayItems(dayKey);
@@ -753,15 +745,13 @@ function renderTL(dayKey,el){
     const stamp=it.status?`<span class="stamp ${stampClass(it.status)}">${stampText(it.status)}</span>`:"";
     const hint=it.spot?`<span class="maphint">지도에서 보기 →</span>`:"";
     const tape=TAPES[i%TAPES.length];
-    const isOver=!it.custom&&!!TL_OVR[it._id];
     const acts=`<div class="tl-actions">
-      <button class="edit" data-tledit="${it._id}" title="수정">✎</button>
-      <button class="del" data-tldel="${it._id}" title="삭제">✕</button>
-      ${isOver?`<button class="revert" data-tlrevert="${it._id}" title="원래대로">↺</button>`:""}
+      <button class="edit" data-tledit="${it.id}" title="수정">✎</button>
+      <button class="del" data-tldel="${it.id}" title="삭제">✕</button>
     </div>`;
     return `<div class="entry">
       <div class="time">${esc(it.time)}</div>
-      <div class="note-card ${clickable}" ${dataspot} data-tlid="${it._id}">
+      <div class="note-card ${clickable}" ${dataspot} data-tlid="${it.id}">
         ${acts}
         <span class="tape ${tape}"></span>
         <div class="row1">
@@ -780,51 +770,23 @@ function renderTL(dayKey,el){
 function bindTLEvents(el){
   el.querySelectorAll('.note-card').forEach(card=>{
     card.onclick=e=>{
-      if(e.target.closest('[data-tledit],[data-tldel],[data-tlrevert]')) return;
+      if(e.target.closest('[data-tledit],[data-tldel]')) return;
       const sp=card.getAttribute('data-spot');
       if(sp&&markers[sp]) focusSpot(sp);
     };
   });
   el.querySelectorAll('[data-tledit]').forEach(b=>{b.onclick=e=>{e.stopPropagation();openTLEdit(b.dataset.tledit);};});
   el.querySelectorAll('[data-tldel]').forEach(b=>{b.onclick=e=>{e.stopPropagation();deleteTL(b.dataset.tldel);};});
-  el.querySelectorAll('[data-tlrevert]').forEach(b=>{b.onclick=e=>{e.stopPropagation();revertTL(b.dataset.tlrevert);};});
 }
 function renderAllTL(){
   renderTL("DAY1",document.getElementById("tl1"));
   renderTL("DAY2",document.getElementById("tl2"));
-  updateRestore();
-}
-function updateRestore(){
-  ["DAY1","DAY2"].forEach(day=>{
-    const btn=document.querySelector(`[data-restoreday="${day}"]`);
-    if(!btn) return;
-    const n=(day==="DAY1"?DAY1:DAY2).filter(it=>TL_HIDDEN.includes(it._id)).length;
-    if(n>0){btn.style.display="";btn.textContent=`↩ 숨긴 일정 ${n}개 되살리기`;}
-    else{btn.style.display="none";}
-  });
-}
-function restoreDay(day){
-  const ids=(day==="DAY1"?DAY1:DAY2).map(it=>it._id);
-  TL_HIDDEN=TL_HIDDEN.filter(id=>!ids.includes(id));
-  saveTL(); renderAllTL();
 }
 function deleteTL(id){
-  const cust=TL_CUSTOM.find(x=>x._id===id);
-  if(cust){
-    /* 내가 추가한 일정 → 완전 삭제 */
-    if(!confirm(`"${cust.title||'이 일정'}" 삭제할까?`)) return;
-    TL_CUSTOM=TL_CUSTOM.filter(x=>x._id!==id);
-  }else{
-    /* 원래 있던 일정 → 숨김 (아래 '되살리기'로 복구 가능) */
-    const base=[...DAY1,...DAY2].find(x=>x._id===id);
-    if(!confirm(`"${(base&&base.title)||'이 일정'}" 삭제할까?\n(아래 '되살리기'로 되돌릴 수 있어)`)) return;
-    if(!TL_HIDDEN.includes(id)) TL_HIDDEN.push(id);
-  }
-  saveTL(); renderAllTL();
-}
-function revertTL(id){
-  if(!confirm("이 일정 수정한 걸 원래대로 되돌릴까?")) return;
-  delete TL_OVR[id]; saveTL(); renderAllTL();
+  const it=TIMELINE.find(x=>x&&x.id===id); if(!it) return;
+  if(!confirm(`"${it.title||'이 일정'}" 삭제할까?`)) return;
+  TIMELINE=TIMELINE.filter(x=>x&&x.id!==id);
+  saveTimeline(); renderAllTL();
 }
 renderAllTL();
 
@@ -840,13 +802,11 @@ function renderPlaces(){
     const cards=list.map((s,i)=>{
       const tel=s.tel?`<div class="meta"><span class="ic">☎</span><span>${esc(s.tel)}</span></div>`:"";
       const tape=TAPES[(i+1)%TAPES.length];
-      const isOver=!s.custom&&!!OVERRIDES[s.id];
       const actions=`<div class="pcard-actions">
         <button class="edit" data-edit="${s.id}" title="수정">✎</button>
-        ${s.custom?`<button class="del" data-del="${s.id}" title="삭제">✕</button>`:""}
-        ${isOver?`<button class="revert" data-revert="${s.id}" title="원래대로 되돌리기">↺</button>`:""}
+        <button class="del" data-del="${s.id}" title="삭제">✕</button>
       </div>`;
-      const badge=s.custom?`<span class="mine">내가 추가 ✦</span>`:(isOver?`<span class="edited">수정됨 ✎</span>`:"");
+      const badge="";
       const addr=s.addr?`<div class="meta"><span class="ic">📍</span><span>${esc(s.addr)}</span></div>`:"";
       const hours=s.hours?`<div class="meta"><span class="ic">🕐</span><span>${esc(s.hours)}</span></div>`:"";
       const note=s.note?`<div class="pnote ${s.warn?'warn':''}">${esc(s.note)}</div>`:"";
@@ -875,7 +835,7 @@ function renderPlaces(){
 function bindPlaceEvents(){
   document.querySelectorAll('#placewrap [data-spot]').forEach(el=>{
     el.onclick=e=>{
-      if(e.target.closest('[data-del],[data-edit],[data-revert]')) return;
+      if(e.target.closest('[data-del],[data-edit]')) return;
       if(markers[el.dataset.spot]) focusSpot(el.dataset.spot);
     };
   });
@@ -885,23 +845,12 @@ function bindPlaceEvents(){
   document.querySelectorAll('#placewrap [data-edit]').forEach(b=>{
     b.onclick=e=>{e.stopPropagation();openEdit(b.dataset.edit);};
   });
-  document.querySelectorAll('#placewrap [data-revert]').forEach(b=>{
-    b.onclick=e=>{e.stopPropagation();revertSpot(b.dataset.revert);};
-  });
-}
-function revertSpot(id){
-  const s=SPOTS.find(x=>x.id===id); if(!s) return;
-  if(!confirm(`"${s.name}" 수정한 걸 원래대로 되돌릴까?`)) return;
-  delete OVERRIDES[id];
-  saveOverrides();
-  renderPlaces();
-  redrawMarkers();
 }
 function deleteSpot(id){
-  const s=CUSTOM.find(x=>x.id===id); if(!s) return;
+  const s=SPOTS_DATA.find(x=>x&&x.id===id); if(!s) return;
   if(!confirm(`"${s.name}" 삭제할까?`)) return;
-  CUSTOM=CUSTOM.filter(x=>x.id!==id);
-  saveCustom();
+  SPOTS_DATA=SPOTS_DATA.filter(x=>x&&x.id!==id);
+  saveSpots();
   renderPlaces();
   redrawMarkers();
 }
@@ -1091,12 +1040,11 @@ addForm.addEventListener('submit',async e=>{
     if(g){lat=g.lat;lng=g.lng;}
   }
   const spot={
-    id:"custom_"+Date.now(),
-    custom:true,
+    id:editingId||("spot_"+Date.now()),
     cat:f.cat.value,
     name,
     status:f.status.value,
-    when:f.when.value.trim()||"내가 추가한 곳",
+    when:f.when.value.trim()||"",
     addr,
     tel:f.tel.value.trim()||null,
     hours:f.hours.value.trim(),
@@ -1105,20 +1053,14 @@ addForm.addEventListener('submit',async e=>{
     lng,
   };
   if(editingId){
-    const idx=CUSTOM.findIndex(x=>x.id===editingId);
-    if(idx>=0){
-      /* 내가 추가한 장소 수정 */
-      spot.id=editingId;CUSTOM[idx]=spot;saveCustom();
-    }else{
-      /* 원래 있던 고정 장소 수정 → 오버라이드로 저장 (원본은 보존) */
-      spot.id=editingId;
-      OVERRIDES[editingId]={cat:spot.cat,name:spot.name,status:spot.status,when:spot.when,
-        addr:spot.addr,tel:spot.tel,hours:spot.hours,note:spot.note,lat:spot.lat,lng:spot.lng};
-      saveOverrides();
-    }
+    const idx=SPOTS_DATA.findIndex(x=>x&&x.id===editingId);
+    /* 원본의 기타 속성(warn, spot 연결 등)은 보존하고 폼 값만 덮어씀 */
+    if(idx>=0) SPOTS_DATA[idx]={...SPOTS_DATA[idx],...spot};
+    else SPOTS_DATA.push(spot);
   }else{
-    CUSTOM.push(spot);saveCustom();
+    SPOTS_DATA.push(spot);
   }
+  saveSpots();
   renderPlaces();
   redrawMarkers();
   const savedId=spot.id;
@@ -1133,7 +1075,7 @@ const tlOverlay=document.getElementById('tlOverlay');
 const tlForm=document.getElementById('tlForm');
 const tlTitle=document.getElementById('tlTitle');
 let tlEditingId=null;
-function findTL(id){return [...dayItems("DAY1"),...dayItems("DAY2")].find(x=>x._id===id);}
+function findTL(id){return TIMELINE.find(x=>x&&x.id===id);}
 function openTLAdd(day){
   tlEditingId=null; tlForm.reset();
   tlForm.elements.day.disabled=false;
@@ -1148,8 +1090,8 @@ function openTLEdit(id){
   f.time.value=it.time||""; f.title.value=it.title||"";
   f.cat.value=it.cat||"이동"; f.status.value=it.status||"";
   f.place.value=it.place||""; f.note.value=it.note||"";
-  f.day.value=it._day||"DAY1";
-  f.day.disabled=!it.custom;   /* 기본 일정은 날짜 이동 불가 */
+  f.day.value=it.day||"DAY1";
+  f.day.disabled=false;   /* 모든 일정 날짜 이동 가능 */
   tlTitle.textContent="✍ 일정 수정";
   tlOverlay.classList.add('open');
 }
@@ -1161,9 +1103,6 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tlOverlay.classList
 document.querySelectorAll('[data-addday]').forEach(b=>{
   b.addEventListener('click',()=>openTLAdd(b.dataset.addday));
 });
-document.querySelectorAll('[data-restoreday]').forEach(b=>{
-  b.addEventListener('click',()=>restoreDay(b.dataset.restoreday));
-});
 tlForm.addEventListener('submit',e=>{
   e.preventDefault();
   const f=tlForm.elements;
@@ -1173,61 +1112,68 @@ tlForm.addEventListener('submit',e=>{
     place:f.place.value.trim(),note:f.note.value.trim()};
   const day=f.day.value;
   if(tlEditingId){
-    const ci=TL_CUSTOM.findIndex(x=>x._id===tlEditingId);
-    if(ci>=0){TL_CUSTOM[ci]={...TL_CUSTOM[ci],...fields,_day:day};}
-    else{TL_OVR[tlEditingId]=fields;}   /* 기본 일정 → 오버라이드 */
+    const idx=TIMELINE.findIndex(x=>x&&x.id===tlEditingId);
+    /* 원본 기타 속성(spot 연결, warn 등) 보존 + 폼 값 덮어쓰기 */
+    if(idx>=0) TIMELINE[idx]={...TIMELINE[idx],...fields,day};
+    else TIMELINE.push({id:tlEditingId,day,...fields});
   }else{
-    TL_CUSTOM.push({_id:"tlc_"+Date.now(),_day:day,custom:true,...fields});
+    TIMELINE.push({id:"tl_"+Date.now(),day,...fields});
   }
-  saveTL(); renderAllTL(); closeTL();
+  saveTimeline(); renderAllTL(); closeTL();
 });
 
-/* ---------- checklist (localStorage) ---------- */
-const DEFAULT_TODOS=[
- {id:"t1",html:"<b>이동수단</b> — 렌트 vs 택시. 다들 마실 거라 밤엔 택시, 낮엔 렌트(짐+6명)가 편한 조합"},
- {id:"t2",html:"<b>저녁 1차 식당</b> — 탕수육이나 국밥류로 생각 중. 19:30까진 끝내야 함(장보기 마감!)"},
- {id:"t3",html:"<b>2일차 카페</b> — 후보 6곳! 그날 컨디션 보고 고르기"},
- {id:"t4",html:"<b>미담펜션 체크인/아웃 시각</b> 확인 (지금은 15:00/11:00으로 가정해둠)"},
- {id:"t5",html:"<b>귀가 열차 예매</b> — 16:24 묵호 출발 (강릉 경유 청량리행)"},
- {id:"t6",html:"<b>어달해변포차</b> 8/16 운영하는지 + 날씨 (노지라서 비 오면 큰일)"},
- {id:"t7",html:"<b>문어닭강정 예약 전화</b> — 주말엔 금방 품절된대!"},
+/* ---------- checklist (Firebase · 모든 항목 동등) ---------- */
+const SEED_TODOS=[
+ {id:"t1",text:"이동수단 — 렌트 vs 택시. 다들 마실 거라 밤엔 택시, 낮엔 렌트(짐+7명)가 편한 조합",checked:false},
+ {id:"t2",text:"저녁 1차 식당 — 탕수육이나 국밥류로 생각 중. 19:30까진 끝내야 함(장보기 마감!)",checked:false},
+ {id:"t3",text:"2일차 카페 — 후보 6곳! 그날 컨디션 보고 고르기",checked:false},
+ {id:"t4",text:"미담펜션 체크인/아웃 시각 확인 (지금은 15:00/11:00으로 가정해둠)",checked:false},
+ {id:"t5",text:"귀가 열차 예매 — 16:24 묵호 출발 (강릉 경유 청량리행)",checked:false},
+ {id:"t6",text:"어달해변포차 8/16 운영하는지 + 날씨 (노지라서 비 오면 큰일)",checked:false},
+ {id:"t7",text:"문어닭강정 예약 전화 — 주말엔 금방 품절된대!",checked:false},
 ];
-let todoChecked={};
-let todoItems=[];
-function saveTodos(){
-  if(!db) return;
-  db.ref('todo_checked').set(Object.keys(todoChecked).length?todoChecked:null);
-  db.ref('todo_items').set(todoItems.length?todoItems:null);
+/* "제목 — 설명" 형태면 앞부분 굵게 (기존 디자인 유지) */
+function todoHtml(text){
+  const m=String(text||"").match(/^(.{1,30}?)\s*—\s*([\s\S]*)$/);
+  return m?`<b>${esc(m[1])}</b> — ${esc(m[2])}`:esc(text);
 }
 function renderTodos(){
   const ul=document.getElementById("todolist");
-  const items=[
-    ...DEFAULT_TODOS.map(t=>({id:t.id,html:t.html,custom:false})),
-    ...todoItems.map(t=>({id:t.id,html:esc(t.text),custom:true})),
-  ];
-  ul.innerHTML=items.map(t=>{
-    const on=!!todoChecked[t.id];
-    const del=t.custom?`<button class="tdel" data-tdel="${t.id}" title="삭제">✕</button>`:"";
+  ul.innerHTML=TODOS.map(t=>{
+    if(!t) return "";
+    const on=!!t.checked;
     return `<li class="${on?'done':''}" data-tid="${t.id}">
       <span class="box ${on?'checked':''}"></span>
-      <span class="txt">${t.html}</span>
-      ${del}
+      <span class="txt">${todoHtml(t.text)}</span>
+      <button class="tedit" data-tedit="${t.id}" title="수정">✎</button>
+      <button class="tdel" data-tdel="${t.id}" title="삭제">✕</button>
     </li>`;
   }).join("");
   ul.querySelectorAll('[data-tid]').forEach(li=>{
     li.onclick=e=>{
-      if(e.target.closest('[data-tdel]')) return;
-      const id=li.dataset.tid;
-      if(todoChecked[id]) delete todoChecked[id]; else todoChecked[id]=true;
+      if(e.target.closest('[data-tdel],[data-tedit]')) return;
+      const t=TODOS.find(x=>x&&x.id===li.dataset.tid); if(!t) return;
+      t.checked=!t.checked;
+      saveTodos(); renderTodos();
+    };
+  });
+  ul.querySelectorAll('[data-tedit]').forEach(b=>{
+    b.onclick=e=>{
+      e.stopPropagation();
+      const t=TODOS.find(x=>x&&x.id===b.dataset.tedit); if(!t) return;
+      const v=prompt("항목 수정",t.text);
+      if(v===null) return;
+      const nv=v.trim(); if(!nv) return;
+      t.text=nv;
       saveTodos(); renderTodos();
     };
   });
   ul.querySelectorAll('[data-tdel]').forEach(b=>{
     b.onclick=e=>{
       e.stopPropagation();
-      const id=b.dataset.tdel;
-      todoItems=todoItems.filter(x=>x.id!==id);
-      delete todoChecked[id];
+      const t=TODOS.find(x=>x&&x.id===b.dataset.tdel);
+      if(!confirm(`"${t?t.text:'이 항목'}" 삭제할까?`)) return;
+      TODOS=TODOS.filter(x=>x&&x.id!==b.dataset.tdel);
       saveTodos(); renderTodos();
     };
   });
@@ -1236,7 +1182,7 @@ function addTodo(){
   const inp=document.getElementById("todoInput");
   const text=inp.value.trim();
   if(!text) return;
-  todoItems.push({id:"tc_"+Date.now(),text});
+  TODOS.push({id:"todo_"+Date.now(),text,checked:false});
   saveTodos(); renderTodos();
   inp.value="";
 }
@@ -1244,15 +1190,15 @@ document.getElementById("todoAddBtn").addEventListener("click",addTodo);
 document.getElementById("todoInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addTodo();}});
 renderTodos();
 
-/* ---------- Firebase 실시간 구독 (여행 멤버 누구나 편집 → 모두 반영) ---------- */
+/* ---------- Firebase 실시간 구독 + 최초 시드 ---------- */
 if(db){
-  db.ref('custom_spots').on('value',s=>{CUSTOM=toArr(s.val());renderPlaces();redrawMarkers();});
-  db.ref('spot_overrides').on('value',s=>{OVERRIDES=s.val()||{};renderPlaces();redrawMarkers();});
-  db.ref('tl_overrides').on('value',s=>{TL_OVR=s.val()||{};renderAllTL();});
-  db.ref('tl_custom').on('value',s=>{TL_CUSTOM=toArr(s.val());renderAllTL();});
-  db.ref('tl_hidden').on('value',s=>{TL_HIDDEN=toArr(s.val());renderAllTL();});
-  db.ref('todo_checked').on('value',s=>{todoChecked=s.val()||{};renderTodos();});
-  db.ref('todo_items').on('value',s=>{todoItems=toArr(s.val());renderTodos();});
+  db.ref('spots').on('value',s=>{SPOTS_DATA=toArr(s.val());renderPlaces();redrawMarkers();});
+  db.ref('timeline').on('value',s=>{TIMELINE=toArr(s.val());renderAllTL();});
+  db.ref('todos').on('value',s=>{TODOS=toArr(s.val());renderTodos();});
+  /* 비어 있을 때만 기본 계획을 한 번 심음 (여러 명이 동시에 열어도 중복 안 됨) */
+  db.ref('spots').transaction(cur=>cur===null?SEED_SPOTS:cur);
+  db.ref('timeline').transaction(cur=>cur===null?SEED_TIMELINE:cur);
+  db.ref('todos').transaction(cur=>cur===null?SEED_TODOS:cur);
 }
 
 /* ---------- 지도 초기화 (모든 정의 완료 후, SDK 로드되면 실행) ---------- */
