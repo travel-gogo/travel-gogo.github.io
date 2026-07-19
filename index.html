@@ -428,7 +428,7 @@
   <section id="mapsec">
     <div class="stitle" style="--hl:var(--sky)">우리 동선 지도</div>
     <svg class="squig" height="10" viewBox="0 0 120 10"><path d="M2 5 Q10 1 18 5 T34 5 T50 5 T66 5 T82 5 T98 5 T114 5" stroke="#9FBFE0" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
-    <div class="scap">거의 다 묵호항 근처에 옹기종기 · 한섬만 남쪽으로 살짝(차 12분) · 카드 누르면 핀으로 날아감!</div>
+    <div class="scap">아래 장소 카드를 누르면 지도가 그곳으로 이동 · 핀을 누르면 그 종류만 진하게 표시돼!</div>
     <div class="filters" id="filters"></div>
     <div class="polaroid">
       <span class="tape"></span><span class="tape lav t2"></span>
@@ -444,7 +444,7 @@
     <div class="scap">영업시간은 2026.07에 적어둔 것 · 가기 전에 한 번 더 확인하기!</div>
     <div class="addbar">
       <button class="addbtn" id="openAdd">＋ 장소 추가</button>
-      <span class="addhint">내가 추가한 곳은 이 브라우저에 저장됨 🖊</span>
+      <span class="addhint">추가·수정·삭제한 내용은 다 같이 공유돼 🖊</span>
     </div>
     <div id="placewrap"></div>
   </section>
@@ -457,7 +457,7 @@
     <div class="memo-pad">
       <span class="tape butter"></span><span class="tape dot t2"></span>
       <h3>✍ 출발 전 체크리스트</h3>
-      <div class="cap">체크하면 줄이 그어짐 · 항목 추가도 가능 (이 브라우저에 저장됨)</div>
+      <div class="cap">체크하면 줄이 그어짐 · 항목 추가·수정·삭제 가능 (다 같이 공유돼)</div>
       <ul id="todolist"></ul>
       <div class="todo-add">
         <input type="text" id="todoInput" placeholder="새 항목 추가... (예: 멀미약 챙기기)" maxlength="120">
@@ -1129,11 +1129,8 @@ const SEED_TODOS=[
  {id:"t6",text:"어달해변포차 8/16 운영하는지 + 날씨 (노지라서 비 오면 큰일)",checked:false},
  {id:"t7",text:"문어닭강정 예약 전화 — 주말엔 금방 품절된대!",checked:false},
 ];
-/* "제목 — 설명" 형태면 앞부분 굵게 (기존 디자인 유지) */
-function todoHtml(text){
-  const m=String(text||"").match(/^(.{1,30}?)\s*—\s*([\s\S]*)$/);
-  return m?`<b>${esc(m[1])}</b> — ${esc(m[2])}`:esc(text);
-}
+/* 체크리스트 텍스트는 서식 없이 통일 */
+function todoHtml(text){return esc(text);}
 function renderTodos(){
   const ul=document.getElementById("todolist");
   ul.innerHTML=TODOS.map(t=>{
